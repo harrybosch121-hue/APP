@@ -9,7 +9,7 @@ import { toast } from "sonner";
 function AddStockForm({ onBack }: { onBack: () => void }) {
   const { addTile } = useInventory();
   const [name, setName] = useState("");
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState<number | "">("");
   const [quantityUnit, setQuantityUnit] = useState<QuantityUnit>("Sq Ft");
   const [type, setType] = useState<TileType>("Gloss");
   const [size, setSize] = useState<TileSize>("2x2");
@@ -31,7 +31,7 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
       return;
     }
     try {
-      await addTile({ name, quantity, quantityUnit, type, size, location, image: preview || marbleTile });
+      await addTile({ name, quantity: Number(quantity) || 0, quantityUnit, type, size, location, image: preview || marbleTile });
       toast.success(`${name} added successfully`);
       onBack();
     } catch {
@@ -63,16 +63,16 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
           <div>
             <label className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Quantity</label>
             <div className="flex items-center gap-3">
-              <button onClick={() => setQuantity((q) => Math.max(1, q - 1))} className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center btn-press text-foreground">
+              <button onClick={() => setQuantity((q) => Math.max(0, (Number(q) || 0) - 1))} className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center btn-press text-foreground">
                 <Minus className="w-4 h-4" />
               </button>
               <input
                 type="number"
                 value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                onChange={(e) => setQuantity(e.target.value === "" ? "" : Number(e.target.value))}
                 className="w-20 text-center py-2 rounded-xl bg-card border border-border text-foreground font-body text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
-              <button onClick={() => setQuantity((q) => q + 1)} className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center btn-press shadow-md">
+              <button onClick={() => setQuantity((q) => (Number(q) || 0) + 1)} className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center btn-press shadow-md">
                 <Plus className="w-4 h-4" />
               </button>
               <Select value={quantityUnit} onValueChange={(v) => setQuantityUnit(v as QuantityUnit)}>
