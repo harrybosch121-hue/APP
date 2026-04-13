@@ -1,0 +1,263 @@
+import { useState } from "react";
+import { Minus, Plus, Upload, ArrowLeft, Warehouse } from "lucide-react";
+import { useInventory, TileType, QuantityUnit, TileSize } from "@/context/InventoryContext";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import marbleTile from "@/assets/marble-tile.jpeg";
+import { toast } from "sonner";
+
+function AddStockForm({ onBack }: { onBack: () => void }) {
+  const { addTile } = useInventory();
+  const [name, setName] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [quantityUnit, setQuantityUnit] = useState<QuantityUnit>("Sq Ft");
+  const [type, setType] = useState<TileType>("Gloss");
+  const [size, setSize] = useState<TileSize>("2x2");
+  const [location, setLocation] = useState("");
+  const [preview, setPreview] = useState<string | null>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => setPreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!name.trim() || !location.trim()) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+    try {
+      await addTile({ name, quantity, quantityUnit, type, size, location, image: preview || marbleTile });
+      toast.success(`${name} added successfully`);
+      onBack();
+    } catch {
+      toast.error("Failed to add tile. Check your connection.");
+    }
+  };
+
+  return (
+    <div className="min-h-screen premium-bg marble-noise pb-20 pt-4">
+      <div className="px-5">
+        <div className="flex items-center gap-3 mb-6">
+          <button onClick={onBack} className="w-9 h-9 rounded-full bg-card border border-border flex items-center justify-center">
+            <ArrowLeft className="w-4 h-4 text-foreground" />
+          </button>
+          <h2 className="font-display text-2xl font-light text-foreground">Add Stock</h2>
+        </div>
+
+        <div className="space-y-5">
+          <div>
+            <label className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Tile Name</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Carrara White Marble"
+              className="w-full px-4 py-3 rounded-xl bg-card border border-border text-foreground placeholder:text-muted-foreground font-body text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-shadow"
+            />
+          </div>
+
+          <div>
+            <label className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Quantity</label>
+            <div className="flex items-center gap-3">
+              <button onClick={() => setQuantity((q) => Math.max(1, q - 1))} className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center btn-press text-foreground">
+                <Minus className="w-4 h-4" />
+              </button>
+              <input
+                type="number"
+                value={quantity}
+                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                className="w-20 text-center py-2 rounded-xl bg-card border border-border text-foreground font-body text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <button onClick={() => setQuantity((q) => q + 1)} className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center btn-press shadow-md">
+                <Plus className="w-4 h-4" />
+              </button>
+              <Select value={quantityUnit} onValueChange={(v) => setQuantityUnit(v as QuantityUnit)}>
+                <SelectTrigger className="rounded-xl bg-card border-border h-10 min-w-[90px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Sq Ft">Sq Ft</SelectItem>
+                  <SelectItem value="Box">Box</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div>
+            <label className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Type</label>
+            <Select value={type} onValueChange={(v) => setType(v as TileType)}>
+              <SelectTrigger className="rounded-xl bg-card border-border h-12"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Gloss">Gloss</SelectItem>
+                <SelectItem value="Matt">Matt</SelectItem>
+                <SelectItem value="MattyGloss">MattyGloss</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <label className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Size</label>
+            <Select value={size} onValueChange={(v) => setSize(v as TileSize)}>
+              <SelectTrigger className="rounded-xl bg-card border-border h-12"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="2x2">2x2</SelectItem>
+                <SelectItem value="2x4">2x4</SelectItem>
+                <SelectItem value="12x18">12x18</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <label className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Location (Godown)</label>
+            <input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="e.g. Godown 1"
+              className="w-full px-4 py-3 rounded-xl bg-card border border-border text-foreground placeholder:text-muted-foreground font-body text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-shadow"
+            />
+          </div>
+
+          <div>
+            <label className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Tile Image</label>
+            <label className="flex items-center gap-3 p-4 rounded-xl bg-card border border-dashed border-border cursor-pointer hover:border-primary/40 transition-colors">
+              <Upload className="w-5 h-5 text-muted-foreground" />
+              <span className="font-body text-sm text-muted-foreground">Upload image</span>
+              <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+            </label>
+            {preview && (
+              <div className="mt-3">
+                <img src={preview} alt="Preview" className="w-full h-40 object-cover rounded-xl" />
+              </div>
+            )}
+          </div>
+
+          <Button onClick={handleSave} className="w-full h-13 rounded-xl bg-primary text-primary-foreground font-body font-semibold text-sm shadow-lg btn-press hover:shadow-xl transition-shadow mt-4">
+            Save Tile
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function StockScreen() {
+  const { tiles } = useInventory();
+  const [view, setView] = useState<"overview" | "add">("overview");
+  const [designSizeFilter, setDesignSizeFilter] = useState<TileSize | "all">("all");
+
+  if (view === "add") {
+    return <AddStockForm onBack={() => setView("overview")} />;
+  }
+
+  const totalSqFt = tiles.filter((t) => t.quantityUnit === "Sq Ft").reduce((sum, t) => sum + t.quantity, 0);
+  const totalBox = tiles.filter((t) => t.quantityUnit === "Box").reduce((sum, t) => sum + t.quantity, 0);
+  const filteredDesigns = designSizeFilter === "all" ? tiles : tiles.filter((t) => t.size === designSizeFilter);
+  const totalDesigns = filteredDesigns.length;
+
+  const allSizes = Array.from(new Set(tiles.map((t) => t.size))).sort();
+  const godowns = Array.from(new Set(tiles.map((t) => t.location))).sort();
+
+  return (
+    <div className="min-h-screen premium-bg marble-noise pb-20 pt-4">
+      <div className="px-5">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="font-display text-2xl font-light text-foreground">Stock</h2>
+          <Button onClick={() => setView("add")} className="rounded-xl bg-primary text-primary-foreground font-body font-semibold text-sm px-4 h-9 shadow-md btn-press">
+            <Plus className="w-4 h-4 mr-1" /> Add Stock
+          </Button>
+        </div>
+
+        {/* Overall totals */}
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="p-4 rounded-2xl premium-card">
+            <p className="font-body text-xs text-muted-foreground uppercase tracking-wider mb-1">Sq Ft</p>
+            <p className="font-display text-2xl font-semibold text-foreground">{totalSqFt.toLocaleString()}</p>
+            <p className="font-body text-xs text-muted-foreground mt-1">Total</p>
+          </div>
+          <div className="p-4 rounded-2xl premium-card">
+            <p className="font-body text-xs text-muted-foreground uppercase tracking-wider mb-1">Boxes</p>
+            <p className="font-display text-2xl font-semibold text-foreground">{totalBox.toLocaleString()}</p>
+            <p className="font-body text-xs text-muted-foreground mt-1">Total</p>
+          </div>
+          <div className="p-4 rounded-2xl premium-card flex flex-col">
+            <p className="font-body text-xs text-muted-foreground uppercase tracking-wider mb-1">Designs</p>
+            <p className="font-display text-2xl font-semibold text-foreground">{totalDesigns}</p>
+            <div className="flex flex-wrap gap-1 mt-2">
+              {(["all", ...allSizes] as Array<TileSize | "all">).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setDesignSizeFilter(s)}
+                  className={`font-body text-[10px] px-1.5 py-0.5 rounded-md border transition-colors ${
+                    designSizeFilter === s
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-transparent text-muted-foreground border-border"
+                  }`}
+                >
+                  {s === "all" ? "All" : s}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Size-wise breakdown */}
+        <h3 className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">By Size</h3>
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {allSizes.map((sz) => {
+            const sizeTiles = tiles.filter((t) => t.size === sz);
+            const sqFt = sizeTiles.filter((t) => t.quantityUnit === "Sq Ft").reduce((sum, t) => sum + t.quantity, 0);
+            const box = sizeTiles.filter((t) => t.quantityUnit === "Box").reduce((sum, t) => sum + t.quantity, 0);
+            return (
+              <div key={sz} className="p-3 rounded-2xl premium-card">
+                <p className="font-body text-xs font-semibold text-primary mb-2">{sz}</p>
+                {sqFt > 0 && <p className="font-body text-xs text-foreground">{sqFt.toLocaleString()} <span className="text-muted-foreground">Sq Ft</span></p>}
+                {box > 0 && <p className="font-body text-xs text-foreground">{box.toLocaleString()} <span className="text-muted-foreground">Box</span></p>}
+                {sqFt === 0 && box === 0 && <p className="font-body text-xs text-muted-foreground">—</p>}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Godown-wise breakdown */}
+        <h3 className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Godown Wise</h3>
+        <div className="space-y-3">
+          {godowns.map((godown) => {
+            const godownTiles = tiles.filter((t) => t.location === godown);
+            const sqFt = godownTiles.filter((t) => t.quantityUnit === "Sq Ft").reduce((sum, t) => sum + t.quantity, 0);
+            const box = godownTiles.filter((t) => t.quantityUnit === "Box").reduce((sum, t) => sum + t.quantity, 0);
+            return (
+              <div key={godown} className="p-4 rounded-2xl premium-card">
+                <div className="flex items-center gap-2 mb-3">
+                  <Warehouse className="w-4 h-4 text-primary" />
+                  <p className="font-body text-sm font-semibold text-foreground">{godown}</p>
+                  <span className="ml-auto font-body text-xs text-muted-foreground">{godownTiles.length} tile{godownTiles.length !== 1 ? "s" : ""}</span>
+                </div>
+                <div className="flex gap-4">
+                  {sqFt > 0 && (
+                    <div>
+                      <p className="font-display text-xl font-semibold text-foreground">{sqFt.toLocaleString()}</p>
+                      <p className="font-body text-xs text-muted-foreground">Sq Ft</p>
+                    </div>
+                  )}
+                  {box > 0 && (
+                    <div>
+                      <p className="font-display text-xl font-semibold text-foreground">{box.toLocaleString()}</p>
+                      <p className="font-body text-xs text-muted-foreground">Box</p>
+                    </div>
+                  )}
+                  {sqFt === 0 && box === 0 && (
+                    <p className="font-body text-xs text-muted-foreground">No stock</p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
