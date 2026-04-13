@@ -4,6 +4,7 @@ const cors = require('cors');
 const authRoutes = require('./routes/auth');
 const tilesRoutes = require('./routes/tiles');
 const logsRoutes = require('./routes/logs');
+const { initDb } = require('./db');
 
 const app = express();
 
@@ -28,4 +29,11 @@ app.use('/api/tiles', tilesRoutes);
 app.use('/api/logs', logsRoutes);
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+initDb()
+  .then(() => {
+    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  })
+  .catch(err => {
+    console.error('Failed to initialize database:', err);
+    process.exit(1);
+  });
