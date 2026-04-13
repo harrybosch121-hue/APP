@@ -10,7 +10,7 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
   const { addTile } = useInventory();
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState<number | "">("");
-  const [quantityUnit, setQuantityUnit] = useState<QuantityUnit>("Sq Ft");
+  const [quantityUnit, setQuantityUnit] = useState<QuantityUnit>("Box");
   const [type, setType] = useState<TileType>("Gloss");
   const [size, setSize] = useState<TileSize>("2x2");
   const [location, setLocation] = useState("");
@@ -113,12 +113,17 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
 
           <div>
             <label className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Location (Godown)</label>
-            <input
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="e.g. Godown 1"
-              className="w-full px-4 py-3 rounded-xl bg-card border border-border text-foreground placeholder:text-muted-foreground font-body text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-shadow"
-            />
+            <Select value={location} onValueChange={setLocation}>
+              <SelectTrigger className="rounded-xl bg-card border-border h-12"><SelectValue placeholder="Select godown" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="D Godown">D Godown</SelectItem>
+                <SelectItem value="A Godown">A Godown</SelectItem>
+                <SelectItem value="B1 Godown">B1 Godown</SelectItem>
+                <SelectItem value="B2 Godown">B2 Godown</SelectItem>
+                <SelectItem value="Main Godown">Main Godown</SelectItem>
+                <SelectItem value="Side Godown">Side Godown</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
