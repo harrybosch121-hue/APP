@@ -2,10 +2,11 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.sribalaji.marbleflow',
-  appName: 'Sri Balaji',
+  appName: 'Balaji Tiles',
   webDir: 'dist',
   server: {
-    androidScheme: 'https',
+    url: 'https://balajitiles.net',
+    cleartext: false,
   },
 };
 
