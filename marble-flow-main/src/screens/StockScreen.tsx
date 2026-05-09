@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Minus, Plus, Upload, ArrowLeft, Warehouse } from "lucide-react";
 import { useInventory, TileType, QuantityUnit, TileSize } from "@/context/InventoryContext";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import marbleTile from "@/assets/marble-tile.jpeg";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
+
+type BillingProduct = { id: string; name: string };
 
 function AddStockForm({ onBack }: { onBack: () => void }) {
   const { addTile } = useInventory();
@@ -15,6 +18,31 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
   const [size, setSize] = useState<TileSize>("2x2");
   const [location, setLocation] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
+  const [billingProducts, setBillingProducts] = useState<BillingProduct[]>([]);
+  const [billingProductsError, setBillingProductsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    api.getBillingProducts()
+      .then((products) => {
+        if (active) {
+          setBillingProducts(products || []);
+          setBillingProductsError(null);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setBillingProductsError('Unable to load product names from billing');
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const filteredProductSuggestions = billingProducts
+    .filter((product) => product.name.toLowerCase().includes(name.toLowerCase()))
+    .slice(0, 8);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -50,14 +78,36 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
         </div>
 
         <div className="space-y-5">
-          <div>
-            <label className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Tile Name</label>
+          <div className="relative">
+            <label className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Product Name</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Carrara White Marble"
+              placeholder="Start typing product name"
               className="w-full px-4 py-3 rounded-xl bg-card border border-border text-foreground placeholder:text-muted-foreground font-body text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-shadow"
             />
+            {billingProductsError && (
+              <p className="mt-2 text-xs text-destructive">{billingProductsError}</p>
+            )}
+            {name.trim() !== "" && filteredProductSuggestions.length > 0 && (
+              <div className="absolute left-0 right-0 z-10 mt-2 rounded-2xl bg-card border border-border shadow-lg overflow-hidden">
+                {filteredProductSuggestions.map((product) => (
+                  <button
+                    key={product.id}
+                    type="button"
+                    onClick={() => setName(product.name)}
+                    className="w-full text-left px-4 py-3 text-sm text-foreground hover:bg-primary/10 focus:bg-primary/10"
+                  >
+                    {product.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            {name.trim() !== "" && filteredProductSuggestions.length === 0 && billingProducts.length > 0 && (
+              <div className="absolute left-0 right-0 z-10 mt-2 rounded-2xl bg-card border border-border shadow-lg overflow-hidden">
+                <div className="px-4 py-3 text-sm text-muted-foreground">No matching products found</div>
+              </div>
+            )}
           </div>
 
           <div>

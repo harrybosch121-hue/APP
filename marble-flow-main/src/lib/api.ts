@@ -35,6 +35,7 @@ export const api = {
 
   getTiles: () => request<any[]>('/api/tiles'),
   getLogs: () => request<any[]>('/api/logs'),
+  getBillingProducts: () => request<{ id: string; name: string }[]>('/api/billing-products'),
 
   addTile: (tile: Record<string, unknown>) =>
     request<any>('/api/tiles', { method: 'POST', body: JSON.stringify(tile) }),
