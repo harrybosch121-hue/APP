@@ -1,4 +1,5 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const BASE_URL = import.meta.env.VITE_API_URL || '';
+const BILLING_API_URL = import.meta.env.VITE_BILLING_API_URL || '';
 
 async function request<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('auth_token');
@@ -36,6 +37,10 @@ export const api = {
   getTiles: () => request<any[]>('/api/tiles'),
   getLogs: () => request<any[]>('/api/logs'),
   getBillingProducts: () => request<{ id: string; name: string }[]>('/api/billing-products'),
+  getBillingProductsFromBilling: () => {
+    if (!BILLING_API_URL) throw new Error('Billing API URL not configured');
+    return request<{ id: string; name: string }[]>(`${BILLING_API_URL}/api/items/public`);
+  },
 
   addTile: (tile: Record<string, unknown>) =>
     request<any>('/api/tiles', { method: 'POST', body: JSON.stringify(tile) }),

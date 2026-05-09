@@ -23,18 +23,32 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     let active = true;
-    api.getBillingProducts()
-      .then((products) => {
-        if (active) {
-          setBillingProducts(products || []);
-          setBillingProductsError(null);
+
+    const loadBillingProducts = async () => {
+      try {
+        const products = await api.getBillingProducts();
+        if (!active) return;
+        setBillingProducts(products || []);
+        setBillingProductsError(null);
+      } catch {
+        if (!active) return;
+        if (import.meta.env.VITE_BILLING_API_URL) {
+          try {
+            const products = await api.getBillingProductsFromBilling();
+            if (!active) return;
+            setBillingProducts(products || []);
+            setBillingProductsError(null);
+            return;
+          } catch {
+            // fallback failed, continue to error state
+          }
         }
-      })
-      .catch(() => {
-        if (active) {
-          setBillingProductsError('Unable to load product names from billing');
-        }
-      });
+        setBillingProductsError('Unable to load product names from billing');
+      }
+    };
+
+    loadBillingProducts();
+
     return () => {
       active = false;
     };
