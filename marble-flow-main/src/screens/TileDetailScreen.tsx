@@ -1,15 +1,11 @@
 import { useState } from "react";
 import { ArrowLeft, Minus, Plus, MapPin } from "lucide-react";
-import { useInventory } from "@/context/InventoryContext";
+import { useInventory, displayType } from "@/context/InventoryContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+  DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
@@ -52,18 +48,14 @@ export default function TileDetailScreen({ tileId, onBack }: TileDetailScreenPro
       </button>
 
       <div className="px-5 mt-4 animate-fade-in">
-        <img
-          src={tile.image}
-          alt={tile.name}
-          className="w-full h-64 object-cover rounded-2xl shadow-lg"
-        />
+        <img src={tile.image} alt={tile.name} className="w-full h-64 object-cover rounded-2xl shadow-lg" />
       </div>
 
       <div className="px-5 mt-6 space-y-4 animate-fade-in" style={{ animationDelay: "0.1s" }}>
         <h2 className="font-display text-2xl font-semibold text-foreground">{tile.name}</h2>
 
         <div className="flex items-center gap-3">
-          <Badge className="bg-primary/10 text-primary border-0 font-body">{tile.type}</Badge>
+          <Badge className="bg-primary/10 text-primary border-0 font-body">{displayType(tile.type)}</Badge>
           <div className="flex items-center gap-1 text-sm text-muted-foreground">
             <MapPin className="w-3.5 h-3.5" /> {tile.location}
           </div>
@@ -75,23 +67,17 @@ export default function TileDetailScreen({ tileId, onBack }: TileDetailScreenPro
         </div>
 
         <div className="flex gap-3 mt-4">
-          <Button
-            onClick={() => { setRemoveQty(1); setShowRemoveDialog(true); }}
-            variant="outline"
-            className="flex-1 h-12 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/5 font-body btn-press"
-          >
+          <Button onClick={() => { setRemoveQty(1); setShowRemoveDialog(true); }} variant="outline"
+            className="flex-1 h-12 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/5 font-body btn-press">
             <Minus className="w-4 h-4 mr-1" /> Remove Stock
           </Button>
-          <Button
-            onClick={() => { setNewQty(tile.quantity); setShowUpdateDialog(true); }}
-            className="flex-1 h-12 rounded-xl bg-primary text-primary-foreground font-body btn-press shadow-md"
-          >
+          <Button onClick={() => { setNewQty(tile.quantity); setShowUpdateDialog(true); }}
+            className="flex-1 h-12 rounded-xl bg-primary text-primary-foreground font-body btn-press shadow-md">
             <Plus className="w-4 h-4 mr-1" /> Update Stock
           </Button>
         </div>
       </div>
 
-      {/* Remove Dialog */}
       <Dialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
         <DialogContent className="rounded-2xl max-w-sm mx-auto">
           <DialogHeader>
@@ -101,48 +87,27 @@ export default function TileDetailScreen({ tileId, onBack }: TileDetailScreenPro
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center justify-center gap-4 py-4">
-            <button
-              onClick={() => setRemoveQty((q) => Math.max(1, (Number(q) || 1) - 1))}
-              className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center btn-press flex-shrink-0"
-            >
+            <button onClick={() => setRemoveQty((q) => Math.max(1, (Number(q) || 1) - 1))}
+              className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center btn-press flex-shrink-0">
               <Minus className="w-4 h-4" />
             </button>
-            <input
-              type="number"
-              min={1}
-              max={tile.quantity}
-              value={removeQty}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "") { setRemoveQty(""); return; }
-                const n = parseInt(v);
-                if (!isNaN(n)) setRemoveQty(Math.min(tile.quantity, Math.max(1, n)));
-              }}
+            <input type="number" min={1} max={tile.quantity} value={removeQty}
+              onChange={(e) => { const v = e.target.value; if (v === "") { setRemoveQty(""); return; } const n = parseInt(v); if (!isNaN(n)) setRemoveQty(Math.min(tile.quantity, Math.max(1, n))); }}
               onBlur={() => { if (removeQty === "" || Number(removeQty) < 1) setRemoveQty(1); }}
-              className="w-24 text-center py-2 rounded-xl bg-card border border-border text-foreground font-display text-3xl font-semibold focus:outline-none focus:ring-2 focus:ring-destructive/30"
-            />
-            <button
-              onClick={() => setRemoveQty((q) => Math.min(tile.quantity, (Number(q) || 0) + 1))}
-              className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center btn-press flex-shrink-0"
-            >
+              className="w-24 text-center py-2 rounded-xl bg-card border border-border text-foreground font-display text-3xl font-semibold focus:outline-none focus:ring-2 focus:ring-destructive/30" />
+            <button onClick={() => setRemoveQty((q) => Math.min(tile.quantity, (Number(q) || 0) + 1))}
+              className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center btn-press flex-shrink-0">
               <Plus className="w-4 h-4" />
             </button>
           </div>
-          <p className="text-center font-body text-xs text-muted-foreground -mt-2 mb-2">
-            Available: {tile.quantity} {tile.quantityUnit}
-          </p>
+          <p className="text-center font-body text-xs text-muted-foreground -mt-2 mb-2">Available: {tile.quantity} {tile.quantityUnit}</p>
           <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowRemoveDialog(false)} className="flex-1 rounded-xl font-body">
-              Cancel
-            </Button>
-            <Button onClick={handleRemove} className="flex-1 rounded-xl bg-destructive text-destructive-foreground font-body btn-press">
-              Confirm Remove
-            </Button>
+            <Button variant="outline" onClick={() => setShowRemoveDialog(false)} className="flex-1 rounded-xl font-body">Cancel</Button>
+            <Button onClick={handleRemove} className="flex-1 rounded-xl bg-destructive text-destructive-foreground font-body btn-press">Confirm Remove</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Update Dialog */}
       <Dialog open={showUpdateDialog} onOpenChange={setShowUpdateDialog}>
         <DialogContent className="rounded-2xl max-w-sm mx-auto">
           <DialogHeader>
@@ -152,39 +117,22 @@ export default function TileDetailScreen({ tileId, onBack }: TileDetailScreenPro
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center justify-center gap-4 py-4">
-            <button
-              onClick={() => setNewQty((q) => Math.max(0, (Number(q) || 0) - 1))}
-              className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center btn-press flex-shrink-0"
-            >
+            <button onClick={() => setNewQty((q) => Math.max(0, (Number(q) || 0) - 1))}
+              className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center btn-press flex-shrink-0">
               <Minus className="w-4 h-4" />
             </button>
-            <input
-              type="number"
-              min={0}
-              value={newQty}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "") { setNewQty(""); return; }
-                const n = parseInt(v);
-                if (!isNaN(n)) setNewQty(Math.max(0, n));
-              }}
+            <input type="number" min={0} value={newQty}
+              onChange={(e) => { const v = e.target.value; if (v === "") { setNewQty(""); return; } const n = parseInt(v); if (!isNaN(n)) setNewQty(Math.max(0, n)); }}
               onBlur={() => { if (newQty === "") setNewQty(0); }}
-              className="w-24 text-center py-2 rounded-xl bg-card border border-border text-foreground font-display text-3xl font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-            <button
-              onClick={() => setNewQty((q) => (Number(q) || 0) + 1)}
-              className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center btn-press flex-shrink-0"
-            >
+              className="w-24 text-center py-2 rounded-xl bg-card border border-border text-foreground font-display text-3xl font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30" />
+            <button onClick={() => setNewQty((q) => (Number(q) || 0) + 1)}
+              className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center btn-press flex-shrink-0">
               <Plus className="w-4 h-4" />
             </button>
           </div>
           <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowUpdateDialog(false)} className="flex-1 rounded-xl font-body">
-              Cancel
-            </Button>
-            <Button onClick={handleUpdate} className="flex-1 rounded-xl bg-primary text-primary-foreground font-body btn-press">
-              Update
-            </Button>
+            <Button variant="outline" onClick={() => setShowUpdateDialog(false)} className="flex-1 rounded-xl font-body">Cancel</Button>
+            <Button onClick={handleUpdate} className="flex-1 rounded-xl bg-primary text-primary-foreground font-body btn-press">Update</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
