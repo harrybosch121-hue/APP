@@ -210,6 +210,7 @@ export default function StockScreen() {
   const { tiles } = useInventory();
   const [view, setView] = useState<"overview" | "add" | "all-tiles">("overview");
     const [allTilesSearch, setAllTilesSearch] = useState("");
+    const [allTilesSearchBy, setAllTilesSearchBy] = useState<"name" | "godown" | "size" | "type">("name");
   const [designSizeFilter, setDesignSizeFilter] = useState<TileSize | "all">("all");
 
   if (view === "add") return <AddStockForm onBack={() => setView("overview")} />;
@@ -218,13 +219,21 @@ export default function StockScreen() {
       const allInStock = tiles.filter((t) => t.quantity > 0).sort((a, b) => b.quantity - a.quantity);
       const query = allTilesSearch.trim().toLowerCase();
       const displayed = query
-        ? allInStock.filter((t) =>
-            t.name.toLowerCase().includes(query) ||
-            t.location.toLowerCase().includes(query) ||
-            t.size.toLowerCase().includes(query) ||
-            displayType(t.type).toLowerCase().includes(query)
-          )
+        ? allInStock.filter((t) => {
+            if (allTilesSearchBy === "name")   return t.name.toLowerCase().includes(query);
+            if (allTilesSearchBy === "godown") return t.location.toLowerCase().includes(query);
+            if (allTilesSearchBy === "size")   return t.size.toLowerCase().includes(query);
+            if (allTilesSearchBy === "type")   return displayType(t.type).toLowerCase().includes(query);
+            return true;
+          })
         : allInStock;
+
+      const searchByLabels: Record<string, string> = {
+        name: "Tile Name", godown: "Godown", size: "Size", type: "Type",
+      };
+      const placeholders: Record<string, string> = {
+        name: "Search tile name…", godown: "Search godown…", size: "Search size…", type: "Search type…",
+      };
 
       return (
         <div className="min-h-screen premium-bg marble-noise pb-20 pt-4">
@@ -242,21 +251,33 @@ export default function StockScreen() {
               </div>
             </div>
 
-            {/* Search bar */}
-            <div className="relative mb-4">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search by name, size, type or godown…"
-                value={allTilesSearch}
-                onChange={(e) => setAllTilesSearch(e.target.value)}
-                className="w-full h-10 pl-9 pr-9 rounded-xl bg-card border border-border text-foreground font-body text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-              {allTilesSearch && (
-                <button onClick={() => setAllTilesSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                  <X className="w-4 h-4" />
-                </button>
-              )}
+            {/* Search by selector + input */}
+            <div className="flex gap-2 mb-4">
+              <select
+                value={allTilesSearchBy}
+                onChange={(e) => { setAllTilesSearchBy(e.target.value as typeof allTilesSearchBy); setAllTilesSearch(""); }}
+                className="h-10 px-3 rounded-xl bg-card border border-border text-foreground font-body text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 shrink-0"
+              >
+                <option value="name">Tile Name</option>
+                <option value="godown">Godown</option>
+                <option value="size">Size</option>
+                <option value="type">Type</option>
+              </select>
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder={placeholders[allTilesSearchBy]}
+                  value={allTilesSearch}
+                  onChange={(e) => setAllTilesSearch(e.target.value)}
+                  className="w-full h-10 pl-9 pr-9 rounded-xl bg-card border border-border text-foreground font-body text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                {allTilesSearch && (
+                  <button onClick={() => setAllTilesSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
 
             {displayed.length === 0 ? (
