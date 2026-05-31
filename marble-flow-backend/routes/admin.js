@@ -1,120 +1,120 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
-const { randomUUID } = require('crypto');
-const { pool } = require('../db');
-const requireAuth = require('../middleware/auth');
-const { sendBackup } = require('../telegram');
+  const bcrypt = require('bcryptjs');
+  const { randomUUID } = require('crypto');
+  const { pool } = require('../db');
+  const requireAuth = require('../middleware/auth');
+  const { sendBackup } = require('../telegram');
 
-const router = express.Router();
+  const router = express.Router();
 
-// All admin routes require auth + admin role
-function requireAdmin(req, res, next) {
-  requireAuth(req, res, () => {
-    if (req.user.username !== 'admin') return res.status(403).json({ error: 'Admin access required' });
-    next();
+  // All admin routes require auth + admin role
+  function requireAdmin(req, res, next) {
+    requireAuth(req, res, () => {
+      if (req.user.username !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+      next();
+    });
+  }
+  router.use(requireAdmin);
+
+  /* ─── Types ─── */
+  router.get('/types', async (_req, res) => {
+    const { rows } = await pool.query('SELECT id, value FROM config_types ORDER BY created_at ASC');
+    res.json(rows);
   });
-}
-router.use(requireAdmin);
+  router.post('/types', async (req, res) => {
+    const { value } = req.body;
+    if (!value?.trim()) return res.status(400).json({ error: 'Value required' });
+    try {
+      const id = randomUUID();
+      await pool.query('INSERT INTO config_types (id, value) VALUES ($1, $2)', [id, value.trim()]);
+      res.status(201).json({ id, value: value.trim() });
+    } catch (err) {
+      if (err.code === '23505') return res.status(409).json({ error: 'Already exists' });
+      res.status(500).json({ error: err.message });
+    }
+  });
+  router.delete('/types/:id', async (req, res) => {
+    await pool.query('DELETE FROM config_types WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  });
 
-/* ─── Types ─── */
-router.get('/types', async (_req, res) => {
-  const { rows } = await pool.query('SELECT id, value FROM config_types ORDER BY created_at ASC');
-  res.json(rows);
-});
-router.post('/types', async (req, res) => {
-  const { value } = req.body;
-  if (!value?.trim()) return res.status(400).json({ error: 'Value required' });
-  try {
-    const id = randomUUID();
-    await pool.query('INSERT INTO config_types (id, value) VALUES ($1, $2)', [id, value.trim()]);
-    res.status(201).json({ id, value: value.trim() });
-  } catch (err) {
-    if (err.code === '23505') return res.status(409).json({ error: 'Already exists' });
-    res.status(500).json({ error: err.message });
-  }
-});
-router.delete('/types/:id', async (req, res) => {
-  await pool.query('DELETE FROM config_types WHERE id = $1', [req.params.id]);
-  res.json({ ok: true });
-});
+  /* ─── Sizes ─── */
+  router.get('/sizes', async (_req, res) => {
+    const { rows } = await pool.query('SELECT id, value FROM config_sizes ORDER BY created_at ASC');
+    res.json(rows);
+  });
+  router.post('/sizes', async (req, res) => {
+    const { value } = req.body;
+    if (!value?.trim()) return res.status(400).json({ error: 'Value required' });
+    try {
+      const id = randomUUID();
+      await pool.query('INSERT INTO config_sizes (id, value) VALUES ($1, $2)', [id, value.trim()]);
+      res.status(201).json({ id, value: value.trim() });
+    } catch (err) {
+      if (err.code === '23505') return res.status(409).json({ error: 'Already exists' });
+      res.status(500).json({ error: err.message });
+    }
+  });
+  router.delete('/sizes/:id', async (req, res) => {
+    await pool.query('DELETE FROM config_sizes WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  });
 
-/* ─── Sizes ─── */
-router.get('/sizes', async (_req, res) => {
-  const { rows } = await pool.query('SELECT id, value FROM config_sizes ORDER BY created_at ASC');
-  res.json(rows);
-});
-router.post('/sizes', async (req, res) => {
-  const { value } = req.body;
-  if (!value?.trim()) return res.status(400).json({ error: 'Value required' });
-  try {
-    const id = randomUUID();
-    await pool.query('INSERT INTO config_sizes (id, value) VALUES ($1, $2)', [id, value.trim()]);
-    res.status(201).json({ id, value: value.trim() });
-  } catch (err) {
-    if (err.code === '23505') return res.status(409).json({ error: 'Already exists' });
-    res.status(500).json({ error: err.message });
-  }
-});
-router.delete('/sizes/:id', async (req, res) => {
-  await pool.query('DELETE FROM config_sizes WHERE id = $1', [req.params.id]);
-  res.json({ ok: true });
-});
+  /* ─── Godowns ─── */
+  router.get('/godowns', async (_req, res) => {
+    const { rows } = await pool.query('SELECT id, value FROM config_godowns ORDER BY created_at ASC');
+    res.json(rows);
+  });
+  router.post('/godowns', async (req, res) => {
+    const { value } = req.body;
+    if (!value?.trim()) return res.status(400).json({ error: 'Value required' });
+    try {
+      const id = randomUUID();
+      await pool.query('INSERT INTO config_godowns (id, value) VALUES ($1, $2)', [id, value.trim()]);
+      res.status(201).json({ id, value: value.trim() });
+    } catch (err) {
+      if (err.code === '23505') return res.status(409).json({ error: 'Already exists' });
+      res.status(500).json({ error: err.message });
+    }
+  });
+  router.delete('/godowns/:id', async (req, res) => {
+    await pool.query('DELETE FROM config_godowns WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  });
 
-/* ─── Godowns ─── */
-router.get('/godowns', async (_req, res) => {
-  const { rows } = await pool.query('SELECT id, value FROM config_godowns ORDER BY created_at ASC');
-  res.json(rows);
-});
-router.post('/godowns', async (req, res) => {
-  const { value } = req.body;
-  if (!value?.trim()) return res.status(400).json({ error: 'Value required' });
-  try {
-    const id = randomUUID();
-    await pool.query('INSERT INTO config_godowns (id, value) VALUES ($1, $2)', [id, value.trim()]);
-    res.status(201).json({ id, value: value.trim() });
-  } catch (err) {
-    if (err.code === '23505') return res.status(409).json({ error: 'Already exists' });
-    res.status(500).json({ error: err.message });
-  }
-});
-router.delete('/godowns/:id', async (req, res) => {
-  await pool.query('DELETE FROM config_godowns WHERE id = $1', [req.params.id]);
-  res.json({ ok: true });
-});
-
-/* ─── Users ─── */
-router.get('/users', async (_req, res) => {
-  const { rows } = await pool.query('SELECT id, username FROM users ORDER BY username');
-  res.json(rows);
-});
-router.post('/users', async (req, res) => {
-  const { username, password } = req.body;
-  if (!username?.trim() || !password) return res.status(400).json({ error: 'Username and password required' });
-  try {
+  /* ─── Users ─── */
+  router.get('/users', async (_req, res) => {
+    const { rows } = await pool.query('SELECT id, username FROM users ORDER BY username');
+    res.json(rows);
+  });
+  router.post('/users', async (req, res) => {
+    const { username, password } = req.body;
+    if (!username?.trim() || !password) return res.status(400).json({ error: 'Username and password required' });
+    try {
+      const hash = bcrypt.hashSync(password, 10);
+      const id = randomUUID();
+      await pool.query('INSERT INTO users (id, username, password_hash) VALUES ($1, $2, $3)', [id, username.trim(), hash]);
+      res.status(201).json({ id, username: username.trim() });
+    } catch (err) {
+      if (err.code === '23505') return res.status(409).json({ error: 'Username already exists' });
+      res.status(500).json({ error: err.message });
+    }
+  });
+  router.put('/users/:id/password', async (req, res) => {
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ error: 'Password required' });
     const hash = bcrypt.hashSync(password, 10);
-    const id = randomUUID();
-    await pool.query('INSERT INTO users (id, username, password_hash) VALUES ($1, $2, $3)', [id, username.trim(), hash]);
-    res.status(201).json({ id, username: username.trim() });
-  } catch (err) {
-    if (err.code === '23505') return res.status(409).json({ error: 'Username already exists' });
-    res.status(500).json({ error: err.message });
-  }
-});
-router.put('/users/:id/password', async (req, res) => {
-  const { password } = req.body;
-  if (!password) return res.status(400).json({ error: 'Password required' });
-  const hash = bcrypt.hashSync(password, 10);
-  await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, req.params.id]);
-  res.json({ ok: true });
-});
-router.delete('/users/:id', async (req, res) => {
-  const { rows } = await pool.query('SELECT username FROM users WHERE id = $1', [req.params.id]);
-  if (rows[0]?.username === 'admin') return res.status(400).json({ error: 'Cannot delete admin' });
-  await pool.query('DELETE FROM users WHERE id = $1', [req.params.id]);
-  res.json({ ok: true });
-});
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, req.params.id]);
+    res.json({ ok: true });
+  });
+  router.delete('/users/:id', async (req, res) => {
+    const { rows } = await pool.query('SELECT username FROM users WHERE id = $1', [req.params.id]);
+    if (rows[0]?.username === 'admin') return res.status(400).json({ error: 'Cannot delete admin' });
+    await pool.query('DELETE FROM users WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  });
 
-/* ─── Products (Tiles) ─── */
+  /* ─── Products (Tiles) ─── */
   router.get('/products', async (_req, res) => {
     const { rows } = await pool.query('SELECT * FROM tiles ORDER BY name ASC');
     res.json(rows);
@@ -149,15 +149,46 @@ router.delete('/users/:id', async (req, res) => {
     res.json({ ok: true });
   });
 
+  /* ─── Sync Billing Products ─── */
+  router.post('/sync-billing', async (_req, res) => {
+    const BILLING_API_URL = process.env.BILLING_API_URL || '';
+    if (!BILLING_API_URL) return res.status(400).json({ error: 'Billing API URL not configured on this server' });
+    try {
+      const billingRes = await fetch(`${BILLING_API_URL}/api/items/public`);
+      if (!billingRes.ok) return res.status(502).json({ error: 'Failed to fetch from billing API' });
+      const products = await billingRes.json();
+
+      // Build set of existing tile names (lowercase) to avoid duplicates
+      const { rows: existing } = await pool.query('SELECT LOWER(name) AS lname FROM tiles');
+      const existingNames = new Set(existing.map(r => r.lname.trim()));
+
+      let added = 0;
+      for (const product of products) {
+        if (!product.name || existingNames.has(product.name.toLowerCase().trim())) continue;
+        const id = randomUUID();
+        await pool.query(
+          'INSERT INTO tiles (id, name, type, size, quantity, "quantityUnit", location, image, source) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+          [id, product.name.trim(), 'Gloss', '2x2', 0, 'Box', '', null, 'billing']
+        );
+        existingNames.add(product.name.toLowerCase().trim());
+        added++;
+      }
+
+      res.json({ ok: true, added, total: products.length });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   /* ─── Telegram Backup ─── */
-router.post('/backup', async (_req, res) => {
-  try {
-    const result = await sendBackup(pool);
-    res.json({ ok: true, ...result });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+  router.post('/backup', async (_req, res) => {
+    try {
+      const result = await sendBackup(pool);
+      res.json({ ok: true, ...result });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
-module.exports = router;
-
+  module.exports = router;
+  
