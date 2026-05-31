@@ -58,9 +58,14 @@ function parseLogs(raw: any[]): AuditEntry[] {
 export function InventoryProvider({ children }: { children: ReactNode }) {
   const [tiles, setTiles] = useState<Tile[]>([]);
   const [logs, setLogs] = useState<AuditEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Start as false — render the UI immediately with empty data while the
+  // first fetch is in flight. Screens show empty/skeleton states instead
+  // of a full-page loading block.
+  const [loading, setLoading] = useState(false);
+  const [initialised, setInitialised] = useState(false);
 
   const refresh = async () => {
+    if (!initialised) setLoading(true);
     try {
       const [tilesData, logsData] = await Promise.all([api.getTiles(), api.getLogs()]);
       setTiles(tilesData);
@@ -69,6 +74,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       console.error("Failed to load inventory:", err);
     } finally {
       setLoading(false);
+      setInitialised(true);
     }
   };
 
@@ -82,28 +88,23 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   };
 
   const updateStock = async (id: string, quantity: number) => {
-    const updated = await api.updateStock(id, quantity);
-    setTiles((prev) => prev.map((t) => (t.id === id ? updated : t)));
+    await api.updateStock(id, quantity);
+    setTiles((prev) => prev.map((t) => (t.id === id ? { ...t, quantity } : t)));
     const updatedLogs = await api.getLogs();
     setLogs(parseLogs(updatedLogs));
   };
 
   const removeStock = async (id: string, quantity: number) => {
-    const updated = await api.removeStock(id, quantity);
-    setTiles((prev) => prev.map((t) => (t.id === id ? updated : t)));
+    const tile = tiles.find((t) => t.id === id);
+    if (!tile) throw new Error("Tile not found");
+    const newQty = Math.max(0, tile.quantity - quantity);
+    await api.removeStock(id, quantity);
+    setTiles((prev) => prev.map((t) => (t.id === id ? { ...t, quantity: newQty } : t)));
     const updatedLogs = await api.getLogs();
     setLogs(parseLogs(updatedLogs));
   };
 
   const getTile = (id: string) => tiles.find((t) => t.id === id);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen premium-bg">
-        <p className="font-body text-sm text-muted-foreground animate-pulse">Loading inventory…</p>
-      </div>
-    );
-  }
 
   return (
     <InventoryContext.Provider value={{ tiles, logs, loading, addTile, updateStock, removeStock, getTile, refresh }}>
@@ -114,6 +115,6 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
 
 export function useInventory() {
   const ctx = useContext(InventoryContext);
-  if (!ctx) throw new Error("useInventory must be used within InventoryProvider");
+  if (!ctx) throw new Error("useInventory must be used inside InventoryProvider");
   return ctx;
 }
