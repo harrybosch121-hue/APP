@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Minus, Plus, Upload, ArrowLeft, Warehouse } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Minus, Plus, Upload, ArrowLeft, Warehouse, RefreshCw } from "lucide-react";
 import { useInventory, TileType, QuantityUnit, TileSize } from "@/context/InventoryContext";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,39 +20,46 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
   const [preview, setPreview] = useState<string | null>(null);
   const [billingProducts, setBillingProducts] = useState<BillingProduct[]>([]);
   const [billingProductsError, setBillingProductsError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const activeRef = useRef(true);
+
+  const loadBillingProducts = useCallback(async (isManual = false) => {
+    if (isManual) setIsRefreshing(true);
+    try {
+      const products = await api.getBillingProducts();
+      if (!activeRef.current) return;
+      setBillingProducts(products || []);
+      setBillingProductsError(null);
+      if (isManual) toast.success(`Loaded ${(products || []).length} products`);
+    } catch {
+      if (!activeRef.current) return;
+      if (import.meta.env.VITE_BILLING_API_URL) {
+        try {
+          const products = await api.getBillingProductsFromBilling();
+          if (!activeRef.current) return;
+          setBillingProducts(products || []);
+          setBillingProductsError(null);
+          if (isManual) toast.success(`Loaded ${(products || []).length} products`);
+          return;
+        } catch {
+          // fallback failed
+        }
+      }
+      setBillingProductsError("Unable to load product names from billing");
+      if (isManual) toast.error("Could not reach billing service");
+    } finally {
+      if (activeRef.current) setIsRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let active = true;
-
-    const loadBillingProducts = async () => {
-      try {
-        const products = await api.getBillingProducts();
-        if (!active) return;
-        setBillingProducts(products || []);
-        setBillingProductsError(null);
-      } catch {
-        if (!active) return;
-        if (import.meta.env.VITE_BILLING_API_URL) {
-          try {
-            const products = await api.getBillingProductsFromBilling();
-            if (!active) return;
-            setBillingProducts(products || []);
-            setBillingProductsError(null);
-            return;
-          } catch {
-            // fallback failed, continue to error state
-          }
-        }
-        setBillingProductsError('Unable to load product names from billing');
-      }
-    };
-
-    loadBillingProducts();
-
+    activeRef.current = true;
+    loadBillingProducts(false);
     return () => {
-      active = false;
+      activeRef.current = false;
     };
-  }, []);
+  }, [loadBillingProducts]);
 
   const filteredProductSuggestions = billingProducts
     .filter((product) => product.name.toLowerCase().includes(name.toLowerCase()))
@@ -93,23 +100,36 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
 
         <div className="space-y-5">
           <div className="relative">
-            <label className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Product Name</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider">Product Name</label>
+              <button
+                type="button"
+                onClick={() => loadBillingProducts(true)}
+                disabled={isRefreshing}
+                className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3 h-3 ${isRefreshing ? "animate-spin" : ""}`} />
+                {isRefreshing ? "Refreshing…" : "Refresh products"}
+              </button>
+            </div>
             <input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => { setName(e.target.value); setShowSuggestions(true); }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
               placeholder="Start typing product name"
               className="w-full px-4 py-3 rounded-xl bg-card border border-border text-foreground placeholder:text-muted-foreground font-body text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-shadow"
             />
             {billingProductsError && (
               <p className="mt-2 text-xs text-destructive">{billingProductsError}</p>
             )}
-            {name.trim() !== "" && filteredProductSuggestions.length > 0 && (
+            {showSuggestions && name.trim() !== "" && filteredProductSuggestions.length > 0 && (
               <div className="absolute left-0 right-0 z-10 mt-2 rounded-2xl bg-card border border-border shadow-lg overflow-hidden">
                 {filteredProductSuggestions.map((product) => (
                   <button
                     key={product.id}
                     type="button"
-                    onClick={() => setName(product.name)}
+                    onMouseDown={() => { setName(product.name); setShowSuggestions(false); }}
                     className="w-full text-left px-4 py-3 text-sm text-foreground hover:bg-primary/10 focus:bg-primary/10"
                   >
                     {product.name}
@@ -117,7 +137,7 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
                 ))}
               </div>
             )}
-            {name.trim() !== "" && filteredProductSuggestions.length === 0 && billingProducts.length > 0 && (
+            {showSuggestions && name.trim() !== "" && filteredProductSuggestions.length === 0 && billingProducts.length > 0 && (
               <div className="absolute left-0 right-0 z-10 mt-2 rounded-2xl bg-card border border-border shadow-lg overflow-hidden">
                 <div className="px-4 py-3 text-sm text-muted-foreground">No matching products found</div>
               </div>
@@ -240,7 +260,6 @@ export default function StockScreen() {
           </Button>
         </div>
 
-        {/* Overall totals */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           <div className="p-4 rounded-2xl premium-card">
             <p className="font-body text-xs text-muted-foreground uppercase tracking-wider mb-1">Sq Ft</p>
@@ -273,7 +292,6 @@ export default function StockScreen() {
           </div>
         </div>
 
-        {/* Size-wise breakdown */}
         <h3 className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">By Size</h3>
         <div className="grid grid-cols-3 gap-3 mb-6">
           {allSizes.map((sz) => {
@@ -291,7 +309,6 @@ export default function StockScreen() {
           })}
         </div>
 
-        {/* Godown-wise breakdown */}
         <h3 className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Godown Wise</h3>
         <div className="space-y-3">
           {godowns.map((godown) => {
