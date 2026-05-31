@@ -280,6 +280,7 @@ export default function StockScreen() {
             const godownTiles = tiles.filter((t) => t.location === godown);
             const sqFt = godownTiles.filter((t) => t.quantityUnit === "Sq Ft").reduce((s, t) => s + t.quantity, 0);
             const box  = godownTiles.filter((t) => t.quantityUnit === "Box").reduce((s, t) => s + t.quantity, 0);
+            if (sqFt === 0 && box === 0) return null;
             return (
               <div key={godown} className="flex items-center justify-between p-4 rounded-2xl premium-card">
                 <div className="flex items-center gap-3">
