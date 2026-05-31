@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
-  import { Shield, Plus, Trash2, LogOut, RefreshCw, Send, Eye, EyeOff, Pencil, PackageSearch, Check, X, Users, Layers, Ruler, Warehouse, Database } from "lucide-react";
+  import { Shield, Plus, Trash2, LogOut, RefreshCw, Send, Eye, EyeOff, Pencil, PackageSearch, Check, X, Users, Layers, Ruler, Warehouse, Database, Download } from "lucide-react";
   import { api } from "@/lib/api";
   import { toast } from "sonner";
   import { Toaster } from "@/components/ui/sonner";
 
   type Tab = "products" | "types" | "sizes" | "godowns" | "users" | "backup";
   type Item = { id: string; value?: string; username?: string };
-  type Product = { id: string; name: string; type: string; size: string; quantity: number; quantityUnit: string; location: string };
+  type Product = { id: string; name: string; type: string; size: string; quantity: number; quantityUnit: string; location: string; source?: string };
+  type BillingCatalogItem = { id: string; name: string };
 
   const TILE_TYPES = ["Gloss", "Matt", "Carving", "Satin", "Stone"];
   const TILE_SIZES = ["2x2", "2x4", "12x18"];
@@ -88,7 +89,9 @@ import { useState, useEffect, useCallback } from "react";
     const [saving, setSaving] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [search, setSearch] = useState("");
-  const [sourceFilter, setSourceFilter] = useState<"all" | "manual" | "billing">("all");
+    const [sourceFilter, setSourceFilter] = useState<"all" | "manual" | "billing">("all");
+    const [syncing, setSyncing] = useState(false);
+    const [billingCatalog, setBillingCatalog] = useState<BillingCatalogItem[]>([]);
 
     // Sync when parent's prefetch resolves
     useEffect(() => {
@@ -110,12 +113,43 @@ import { useState, useEffect, useCallback } from "react";
       if (!fetched && !prefetchLoading) refresh();
     }, [fetched, prefetchLoading, refresh]);
 
+    // Load billing catalog to show un-imported products
+    const loadBillingCatalog = useCallback(async () => {
+      try {
+        const prods = await api.getBillingProducts();
+        setBillingCatalog(prods || []);
+      } catch { /* silent */ }
+    }, []);
+
+    useEffect(() => { loadBillingCatalog(); }, [loadBillingCatalog]);
+
+    // Products already in tiles (by lowercase name)
+    const productNameSet = new Set(products.map(p => p.name.toLowerCase().trim()));
+
+    // Billing items not yet imported into tiles
+    const catalogOnly = billingCatalog.filter(p => !productNameSet.has(p.name.toLowerCase().trim()));
+
     const filtered = products.filter(p => {
       const q = search.toLowerCase();
       const matchesSearch = [p.name, p.type, p.size, p.location].some(v => (v ?? "").toLowerCase().includes(q));
       const matchesSource = sourceFilter === "all" || (p.source ?? "manual") === sourceFilter;
       return matchesSearch && matchesSource;
     });
+
+    const filteredCatalog = (sourceFilter === "all" || sourceFilter === "billing")
+      ? catalogOnly.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()))
+      : [];
+
+    const handleSyncBilling = async () => {
+      setSyncing(true);
+      try {
+        const result = await api.admin.syncBilling();
+        toast.success(`Imported ${result.added} new products from billing (${result.total} total in catalog)`);
+        await refresh();
+        await loadBillingCatalog();
+      } catch (e: any) { toast.error(e.message); }
+      setSyncing(false);
+    };
 
     const handleAdd = async (form: Omit<Product, "id">) => {
       setSaving(true);
@@ -152,13 +186,17 @@ import { useState, useEffect, useCallback } from "react";
     };
 
     const isLoading = prefetchLoading && !fetched;
+    const totalVisible = filtered.length + filteredCatalog.length;
 
     return (
       <div>
         <div className="flex items-center gap-2 mb-1">
           <PackageSearch className="w-4 h-4 text-indigo-600" />
           <h2 className="font-semibold text-gray-800">Products</h2>
-          <span className="ml-auto text-xs text-gray-400">{products.length} product{products.length !== 1 ? "s" : ""}</span>
+          <span className="ml-auto text-xs text-gray-400">
+            {products.length} imported
+            {catalogOnly.length > 0 && <span className="text-amber-600"> · {catalogOnly.length} catalog</span>}
+          </span>
           {(isLoading || refreshing) && <span className="text-[10px] text-indigo-500 animate-pulse">loading…</span>}
           <button onClick={refresh} disabled={refreshing} className="p-1 rounded-lg text-gray-400 hover:text-gray-600">
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
@@ -166,11 +204,25 @@ import { useState, useEffect, useCallback } from "react";
         </div>
         <p className="text-xs text-gray-400 mb-3">Add, edit, or remove inventory tiles directly.</p>
 
+        {/* Sync from Billing button */}
+        <button
+          onClick={handleSyncBilling}
+          disabled={syncing || catalogOnly.length === 0}
+          className="w-full mb-3 py-2.5 rounded-xl border border-dashed border-amber-400 bg-amber-50 text-amber-700 text-sm font-medium flex items-center justify-center gap-2 hover:bg-amber-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Download className={`w-4 h-4 ${syncing ? "animate-bounce" : ""}`} />
+          {syncing
+            ? "Importing from billing…"
+            : catalogOnly.length > 0
+              ? `Import all ${catalogOnly.length} billing products into inventory`
+              : "All billing products already imported"}
+        </button>
+
         <div className="flex gap-1 mb-3 p-1 bg-gray-100 rounded-xl">
           {(["all","manual","billing"] as const).map((val) => (
             <button key={val} onClick={() => setSourceFilter(val)}
               className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${sourceFilter === val ? "bg-white text-indigo-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
-              {val === "all" ? "All" : val === "manual" ? "New Products" : "From Billing"}
+              {val === "all" ? `All (${products.length + catalogOnly.length})` : val === "manual" ? "New Products" : `From Billing (${products.filter(p => (p.source ?? "manual") === "billing").length + catalogOnly.length})`}
             </button>
           ))}
         </div>
@@ -188,10 +240,11 @@ import { useState, useEffect, useCallback } from "react";
           </button>
         )}
 
-        {filtered.length === 0 && !isLoading ? (
+        {totalVisible === 0 && !isLoading ? (
           <p className="text-sm text-gray-400 text-center py-8">{search ? "No matches" : "No products yet"}</p>
         ) : (
           <div className="space-y-2">
+            {/* Imported inventory tiles */}
             {filtered.map(p => (
               <div key={p.id} className="rounded-xl border border-gray-100 overflow-hidden">
                 {editingId === p.id ? (
@@ -206,7 +259,8 @@ import { useState, useEffect, useCallback } from "react";
                         <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-medium">{p.type}</span>
                         <span className="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded font-medium">{p.size}</span>
                         <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">{p.quantity} {p.quantityUnit}</span>
-                        <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">{p.location}</span>
+                        {p.location && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">{p.location}</span>}
+                        {(p.source === "billing") && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">Billing</span>}
                       </div>
                     </div>
                     <div className="flex gap-1 shrink-0">
@@ -223,6 +277,32 @@ import { useState, useEffect, useCallback } from "react";
                 )}
               </div>
             ))}
+
+            {/* Billing catalog items not yet imported */}
+            {filteredCatalog.length > 0 && (
+              <>
+                {filtered.length > 0 && (
+                  <div className="flex items-center gap-2 py-1">
+                    <div className="flex-1 h-px bg-amber-200" />
+                    <span className="text-[10px] text-amber-600 font-medium">{filteredCatalog.length} NOT YET IMPORTED</span>
+                    <div className="flex-1 h-px bg-amber-200" />
+                  </div>
+                )}
+                {filteredCatalog.map(p => (
+                  <div key={`cat-${p.id}`} className="rounded-xl border border-amber-100 overflow-hidden">
+                    <div className="flex items-center px-4 py-3 bg-amber-50/60 gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-700 truncate">{p.name}</p>
+                        <div className="flex gap-1.5 mt-1">
+                          <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">Catalog only</span>
+                          <span className="text-[10px] text-gray-400">Not yet in inventory</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         )}
       </div>
@@ -384,8 +464,6 @@ import { useState, useEffect, useCallback } from "react";
     const [loadingAll, setLoadingAll] = useState(false);
     const [backupStatus, setBackupStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
 
-    // ── Warm-up: fire the moment this page loads, before login ──────────────────
-    // Gives Railway time to wake up while the user types credentials.
     useEffect(() => {
       fetch("/api/health").catch(() => {});
     }, []);
@@ -394,8 +472,6 @@ import { useState, useEffect, useCallback } from "react";
       if (!token) return;
       setLoadingAll(true);
       try {
-        // Fetch ALL data in parallel — products included — so everything is
-        // ready before the user clicks any tab.
         const [t, s, g, u, p] = await Promise.all([
           api.admin.getTypes(), api.admin.getSizes(), api.admin.getGodowns(),
           api.admin.getUsers(), api.admin.getProducts(),
@@ -436,18 +512,20 @@ import { useState, useEffect, useCallback } from "react";
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">Username</label>
                 <input value={loginForm.username} onChange={e => setLoginForm(p => ({ ...p, username: e.target.value }))}
-                  onKeyDown={e => e.key === "Enter" && handleLogin()} placeholder="admin"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                  onKeyDown={e => e.key === "Enter" && handleLogin()}
+                  placeholder="admin"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">Password</label>
                 <input type="password" value={loginForm.password} onChange={e => setLoginForm(p => ({ ...p, password: e.target.value }))}
-                  onKeyDown={e => e.key === "Enter" && handleLogin()} placeholder="••••••"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                  onKeyDown={e => e.key === "Enter" && handleLogin()}
+                  placeholder="••••••••"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
               </div>
-              {loginErr && <p className="text-xs text-red-500 text-center">{loginErr}</p>}
+              {loginErr && <p className="text-xs text-red-500">{loginErr}</p>}
               <button onClick={handleLogin} disabled={logging}
-                className="w-full py-3 rounded-xl bg-indigo-600 text-white font-semibold text-sm shadow-md disabled:opacity-50 hover:bg-indigo-700 transition-colors">
+                className="w-full py-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold disabled:opacity-50">
                 {logging ? "Signing in…" : "Sign In"}
               </button>
             </div>
@@ -458,115 +536,92 @@ import { useState, useEffect, useCallback } from "react";
 
     const TABS: { id: Tab; label: string; icon: any }[] = [
       { id: "products", label: "Products", icon: PackageSearch },
-      { id: "types",   label: "Types",    icon: Layers },
-      { id: "sizes",   label: "Sizes",    icon: Ruler },
-      { id: "godowns", label: "Godowns",  icon: Warehouse },
-      { id: "users",   label: "Users",    icon: Users },
-      { id: "backup",  label: "Backup",   icon: Database },
+      { id: "types",    label: "Types",    icon: Layers },
+      { id: "sizes",    label: "Sizes",    icon: Ruler },
+      { id: "godowns",  label: "Godowns",  icon: Warehouse },
+      { id: "users",    label: "Users",    icon: Users },
+      { id: "backup",   label: "Backup",   icon: Database },
     ];
 
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white">
         <Toaster />
-        <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
-            <Shield className="w-4 h-4 text-white" />
-          </div>
-          <div className="flex-1">
-            <h1 className="font-bold text-gray-900 text-sm">Admin Panel</h1>
-            <p className="text-[10px] text-gray-400">Inventory Management</p>
-          </div>
-          <button onClick={load} disabled={loadingAll} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600">
-            <RefreshCw className={`w-4 h-4 ${loadingAll ? "animate-spin" : ""}`} />
-          </button>
-          <button onClick={() => { api.admin.logout(); setToken(null); }}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 transition-colors">
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="bg-white border-b border-gray-100 px-4 flex gap-1 overflow-x-auto">
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-4 py-3 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${tab === t.id ? "border-indigo-600 text-indigo-600" : "border-transparent text-gray-400 hover:text-gray-600"}`}>
-              <t.icon className="w-3.5 h-3.5" />
-              {t.label}
+        <div className="max-w-lg mx-auto px-4 pt-6 pb-24">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow">
+                <Shield className="w-4.5 h-4.5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-base font-bold text-gray-900 leading-tight">Admin Panel</h1>
+                <p className="text-[10px] text-gray-400">Inventory Management</p>
+              </div>
+            </div>
+            <button onClick={() => { api.admin.logout(); setToken(null); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-gray-100 text-gray-500 text-xs font-medium hover:text-red-500 transition-colors shadow-sm">
+              <LogOut className="w-3.5 h-3.5" />Logout
             </button>
-          ))}
-        </div>
+          </div>
 
-        <div className="p-4 max-w-lg mx-auto">
-          {tab === "products" && (
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-              <ProductPanel
-                prefetched={products}
-                prefetchLoading={loadingAll}
-              />
-            </div>
-          )}
-          {tab === "types" && (
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-              <TabPanel title="Tile Types" icon={Layers} items={types} label={(i: Item) => i.value!}
-                placeholder="e.g. Satin, Stone"
-                onAdd={async (v: string) => { const r = await api.admin.addType(v); setTypes(p => [...p, r]); toast.success(`"${v}" added`); }}
-                onDelete={async (id: string) => { await api.admin.deleteType(id); setTypes(p => p.filter(x => x.id !== id)); toast.success("Removed"); }} />
-            </div>
-          )}
-          {tab === "sizes" && (
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-              <TabPanel title="Tile Sizes" icon={Ruler} items={sizes} label={(i: Item) => i.value!}
-                placeholder="e.g. 3x3, 4x4"
-                onAdd={async (v: string) => { const r = await api.admin.addSize(v); setSizes(p => [...p, r]); toast.success(`"${v}" added`); }}
-                onDelete={async (id: string) => { await api.admin.deleteSize(id); setSizes(p => p.filter(x => x.id !== id)); toast.success("Removed"); }} />
-            </div>
-          )}
-          {tab === "godowns" && (
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-              <TabPanel title="Godowns" icon={Warehouse} items={godowns} label={(i: Item) => i.value!}
-                placeholder="e.g. C Godown, New Store"
-                onAdd={async (v: string) => { const r = await api.admin.addGodown(v); setGodowns(p => [...p, r]); toast.success(`"${v}" added`); }}
-                onDelete={async (id: string) => { await api.admin.deleteGodown(id); setGodowns(p => p.filter(x => x.id !== id)); toast.success("Removed"); }} />
-            </div>
-          )}
-          {tab === "users" && (
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-              <UserPanel users={users}
-                onAdd={async (u: string, pw: string) => { const r = await api.admin.addUser(u, pw); setUsers(p => [...p, r]); toast.success(`User "${u}" created`); }}
-                onDelete={async (id: string) => { await api.admin.deleteUser(id); setUsers(p => p.filter(x => x.id !== id)); toast.success("User removed"); }}
-                onChangePassword={async (id: string, pw: string) => { await api.admin.changePassword(id, pw); toast.success("Password updated"); }} />
-            </div>
-          )}
-          {tab === "backup" && (
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-              <div className="flex items-center gap-2 mb-1">
-                <Database className="w-4 h-4 text-indigo-600" />
-                <h2 className="font-semibold text-gray-800">Telegram Backup</h2>
-              </div>
-              <p className="text-xs text-gray-400 mb-6">Send a full database backup to the configured Telegram users right now. Automatic hourly backups run every hour.</p>
-              <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-100 mb-4">
-                <p className="text-xs font-medium text-indigo-700 mb-1">What gets backed up</p>
-                <ul className="text-xs text-indigo-600 space-y-0.5 list-disc list-inside">
-                  <li>All inventory tiles</li>
-                  <li>Audit logs</li>
-                  <li>Config (types, sizes, godowns)</li>
-                  <li>User accounts</li>
-                </ul>
-              </div>
-              <button
-                onClick={async () => {
-                  setBackupStatus("sending");
-                  try { await api.admin.triggerBackup(); setBackupStatus("done"); toast.success("Backup sent to Telegram!"); }
-                  catch (e: any) { setBackupStatus("error"); toast.error("Backup failed: " + e.message); }
-                }}
-                disabled={backupStatus === "sending"}
-                className="w-full py-3 rounded-xl bg-indigo-600 text-white font-semibold text-sm shadow-md disabled:opacity-50 flex items-center justify-center gap-2">
-                {backupStatus === "sending" ? (<><RefreshCw className="w-4 h-4 animate-spin" /> Sending…</>)
-                  : backupStatus === "done" ? (<><Send className="w-4 h-4" /> Sent Successfully</>)
-                  : (<><Send className="w-4 h-4" /> Send Backup Now</>)}
+          {/* Tab Bar */}
+          <div className="flex gap-1 p-1 bg-white rounded-2xl shadow-sm border border-gray-100 mb-5 overflow-x-auto">
+            {TABS.map(({ id, label, icon: Icon }) => (
+              <button key={id} onClick={() => setTab(id)}
+                className={`flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${tab === id ? "bg-indigo-600 text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                <Icon className="w-3.5 h-3.5" />{label}
               </button>
-              {backupStatus === "done" && <p className="text-xs text-green-600 text-center mt-2">✓ Backup delivered to Telegram</p>}
-            </div>
-          )}
+            ))}
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            {tab === "products" && (
+              <ProductPanel prefetched={products} prefetchLoading={loadingAll} />
+            )}
+            {tab === "types" && (
+              <TabPanel title="Types" icon={Layers} items={types} label={(i: Item) => i.value!}
+                placeholder="e.g. Gloss"
+                onAdd={async (v: string) => { const item = await api.admin.addType(v); setTypes(p => [...p, item]); }}
+                onDelete={async (id: string) => { await api.admin.deleteType(id); setTypes(p => p.filter(i => i.id !== id)); }} />
+            )}
+            {tab === "sizes" && (
+              <TabPanel title="Sizes" icon={Ruler} items={sizes} label={(i: Item) => i.value!}
+                placeholder="e.g. 2x4"
+                onAdd={async (v: string) => { const item = await api.admin.addSize(v); setSizes(p => [...p, item]); }}
+                onDelete={async (id: string) => { await api.admin.deleteSize(id); setSizes(p => p.filter(i => i.id !== id)); }} />
+            )}
+            {tab === "godowns" && (
+              <TabPanel title="Godowns" icon={Warehouse} items={godowns} label={(i: Item) => i.value!}
+                placeholder="e.g. A Godown"
+                onAdd={async (v: string) => { const item = await api.admin.addGodown(v); setGodowns(p => [...p, item]); }}
+                onDelete={async (id: string) => { await api.admin.deleteGodown(id); setGodowns(p => p.filter(i => i.id !== id)); }} />
+            )}
+            {tab === "users" && (
+              <UserPanel users={users}
+                onAdd={async (u: string, pw: string) => { const item = await api.admin.addUser(u, pw); setUsers(p => [...p, item]); }}
+                onDelete={async (id: string) => { await api.admin.deleteUser(id); setUsers(p => p.filter(i => i.id !== id)); }}
+                onChangePassword={async (id: string, pw: string) => { await api.admin.changePassword(id, pw); toast.success("Password updated"); }} />
+            )}
+            {tab === "backup" && (
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Database className="w-4 h-4 text-indigo-600" />
+                  <h2 className="font-semibold text-gray-800">Backup</h2>
+                </div>
+                <p className="text-xs text-gray-400 mb-4">Send a full database backup to Telegram.</p>
+                <button
+                  onClick={async () => {
+                    setBackupStatus("sending");
+                    try { await api.admin.triggerBackup(); setBackupStatus("done"); toast.success("Backup sent to Telegram!"); }
+                    catch (e: any) { setBackupStatus("error"); toast.error(e.message); }
+                  }}
+                  disabled={backupStatus === "sending"}
+                  className="w-full py-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2">
+                  <Send className={`w-4 h-4 ${backupStatus === "sending" ? "animate-pulse" : ""}`} />
+                  {backupStatus === "sending" ? "Sending…" : backupStatus === "done" ? "Backup Sent!" : "Send Backup Now"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
