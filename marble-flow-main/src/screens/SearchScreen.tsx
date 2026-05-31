@@ -62,7 +62,7 @@ export default function SearchScreen({ onSelectTile }: SearchScreenProps) {
                   )}
                   style={{ animationDelay: `${i * 0.05}s` }}
                 >
-                  <img src={tile.image} alt={tile.name} className="w-16 h-16 rounded-xl object-cover" />
+                  {tile.image ? <img src={tile.image} alt={tile.name} className="w-16 h-16 rounded-xl object-cover" /> : <div className="w-16 h-16 rounded-xl bg-muted flex-shrink-0" />}
                   <div className="flex-1 min-w-0">
                     <p className="font-body text-sm font-semibold text-foreground truncate">{tile.name}</p>
                     <div className="flex items-center gap-2 mt-1">
