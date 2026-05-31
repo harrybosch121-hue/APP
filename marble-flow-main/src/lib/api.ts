@@ -83,5 +83,13 @@ export const api = {
     changePassword: (id: string, password: string) => adminRequest<any>(`/api/admin/users/${id}/password`, { method: "PUT", body: JSON.stringify({ password }) }),
 
     triggerBackup: () => adminRequest<any>("/api/admin/backup", { method: "POST" }),
+
+      getProducts: () => adminRequest<any[]>("/api/admin/products"),
+      addProduct: (p: { name: string; type: string; size: string; quantity: number; quantityUnit: string; location: string }) =>
+        adminRequest<any>("/api/admin/products", { method: "POST", body: JSON.stringify(p) }),
+      updateProduct: (id: string, p: { name: string; type: string; size: string; quantity: number; quantityUnit: string; location: string }) =>
+        adminRequest<any>(`/api/admin/products/${id}`, { method: "PUT", body: JSON.stringify(p) }),
+      deleteProduct: (id: string) =>
+        adminRequest<any>(`/api/admin/products/${id}`, { method: "DELETE" }),
   },
 };
