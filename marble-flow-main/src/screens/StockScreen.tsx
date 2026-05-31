@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Minus, Plus, Upload, ArrowLeft, Warehouse, RefreshCw, PackagePlus, List } from "lucide-react";
+import { Minus, Plus, Upload, ArrowLeft, Warehouse, RefreshCw, PackagePlus, List, Search, X } from "lucide-react";
 import { useInventory, displayType, TileType, QuantityUnit, TileSize } from "@/context/InventoryContext";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -209,33 +209,66 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
 export default function StockScreen() {
   const { tiles } = useInventory();
   const [view, setView] = useState<"overview" | "add" | "all-tiles">("overview");
+    const [allTilesSearch, setAllTilesSearch] = useState("");
   const [designSizeFilter, setDesignSizeFilter] = useState<TileSize | "all">("all");
 
   if (view === "add") return <AddStockForm onBack={() => setView("overview")} />;
 
     if (view === "all-tiles") {
       const allInStock = tiles.filter((t) => t.quantity > 0).sort((a, b) => b.quantity - a.quantity);
+      const query = allTilesSearch.trim().toLowerCase();
+      const displayed = query
+        ? allInStock.filter((t) =>
+            t.name.toLowerCase().includes(query) ||
+            t.location.toLowerCase().includes(query) ||
+            t.size.toLowerCase().includes(query) ||
+            displayType(t.type).toLowerCase().includes(query)
+          )
+        : allInStock;
+
       return (
         <div className="min-h-screen premium-bg marble-noise pb-20 pt-4">
           <div className="px-5">
-            <div className="flex items-center gap-3 mb-6">
-              <button onClick={() => setView("overview")} className="w-9 h-9 rounded-full bg-card border border-border flex items-center justify-center btn-press">
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-4">
+              <button onClick={() => { setView("overview"); setAllTilesSearch(""); }} className="w-9 h-9 rounded-full bg-card border border-border flex items-center justify-center btn-press">
                 <ArrowLeft className="w-4 h-4 text-foreground" />
               </button>
               <div>
                 <h2 className="font-display text-2xl font-light text-foreground">All Tiles</h2>
-                <p className="font-body text-xs text-muted-foreground">{allInStock.length} tile{allInStock.length !== 1 ? "s" : ""} in stock</p>
+                <p className="font-body text-xs text-muted-foreground">
+                  {query ? `${displayed.length} of ${allInStock.length}` : allInStock.length} tile{allInStock.length !== 1 ? "s" : ""} in stock
+                </p>
               </div>
             </div>
 
-            {allInStock.length === 0 ? (
+            {/* Search bar */}
+            <div className="relative mb-4">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search by name, size, type or godown…"
+                value={allTilesSearch}
+                onChange={(e) => setAllTilesSearch(e.target.value)}
+                className="w-full h-10 pl-9 pr-9 rounded-xl bg-card border border-border text-foreground font-body text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              {allTilesSearch && (
+                <button onClick={() => setAllTilesSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {displayed.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <Warehouse className="w-12 h-12 text-muted-foreground/30 mb-3" />
-                <p className="font-body text-sm text-muted-foreground">No tiles currently in stock</p>
+                <p className="font-body text-sm text-muted-foreground">
+                  {query ? `No tiles match "${allTilesSearch}"` : "No tiles currently in stock"}
+                </p>
               </div>
             ) : (
               <div className="space-y-2">
-                {allInStock.map((tile, i) => (
+                {displayed.map((tile, i) => (
                   <div key={tile.id} className="flex items-center gap-3 px-4 py-3.5 rounded-2xl premium-card animate-fade-in" style={{ animationDelay: `${i * 0.03}s` }}>
                     <span className="font-display text-sm font-semibold text-muted-foreground w-6 text-right shrink-0">{i + 1}</span>
                     <div className="flex-1 min-w-0">
