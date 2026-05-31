@@ -114,7 +114,42 @@ router.delete('/users/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
-/* ─── Telegram Backup ─── */
+/* ─── Products (Tiles) ─── */
+  router.get('/products', async (_req, res) => {
+    const { rows } = await pool.query('SELECT * FROM tiles ORDER BY name ASC');
+    res.json(rows);
+  });
+  router.post('/products', async (req, res) => {
+    const { name, type, size, quantity, quantityUnit, location } = req.body;
+    if (!name?.trim() || !type || !size || quantity === undefined || !quantityUnit || !location) {
+      return res.status(400).json({ error: 'All fields required' });
+    }
+    try {
+      const id = randomUUID();
+      const { rows } = await pool.query(
+        'INSERT INTO tiles (id, name, type, size, quantity, "quantityUnit", location) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+        [id, name.trim(), type, size, Number(quantity), quantityUnit, location]
+      );
+      res.status(201).json(rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+  router.put('/products/:id', async (req, res) => {
+    const { name, type, size, quantity, quantityUnit, location } = req.body;
+    try {
+      const { rows } = await pool.query(
+        'UPDATE tiles SET name=$1, type=$2, size=$3, quantity=$4, "quantityUnit"=$5, location=$6 WHERE id=$7 RETURNING *',
+        [name, type, size, Number(quantity), quantityUnit, location, req.params.id]
+      );
+      if (!rows[0]) return res.status(404).json({ error: 'Product not found' });
+      res.json(rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+  router.delete('/products/:id', async (req, res) => {
+    await pool.query('DELETE FROM tiles WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  });
+
+  /* ─── Telegram Backup ─── */
 router.post('/backup', async (_req, res) => {
   try {
     const result = await sendBackup(pool);
