@@ -213,14 +213,17 @@ export default function StockScreen() {
 
   if (view === "add") return <AddStockForm onBack={() => setView("overview")} />;
 
-  const totalSqFt = tiles.filter((t) => t.quantityUnit === "Sq Ft").reduce((s, t) => s + t.quantity, 0);
-  const totalBox  = tiles.filter((t) => t.quantityUnit === "Box").reduce((s, t) => s + t.quantity, 0);
-  const filteredDesigns = designSizeFilter === "all" ? tiles : tiles.filter((t) => t.size === designSizeFilter);
-  const allSizes = Array.from(new Set(tiles.map((t) => t.size))).sort();
+  // Only tiles with stock present (quantity > 0)
+  const inStock = tiles.filter((t) => t.quantity > 0);
+
+  const totalSqFt = inStock.filter((t) => t.quantityUnit === "Sq Ft").reduce((s, t) => s + t.quantity, 0);
+  const totalBox  = inStock.filter((t) => t.quantityUnit === "Box").reduce((s, t) => s + t.quantity, 0);
+  const filteredDesigns = designSizeFilter === "all" ? inStock : inStock.filter((t) => t.size === designSizeFilter);
+  const allSizes = Array.from(new Set(inStock.map((t) => t.size))).sort();
 
   const normalizeType = (t: string) => t === "MattyGloss" ? "Carving" : t;
   const typeGroups = ["Gloss", "Matt", "Carving"] as const;
-  const godowns = Array.from(new Set(tiles.map((t) => t.location))).sort();
+  const godowns = Array.from(new Set(inStock.map((t) => t.location))).sort();
 
   return (
     <div className="min-h-screen premium-bg marble-noise pb-20 pt-4">
