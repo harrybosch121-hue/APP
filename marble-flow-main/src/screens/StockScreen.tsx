@@ -274,9 +274,14 @@ export default function StockScreen() {
       <div className="px-5">
         <div className="flex items-center justify-between mb-6">
           <h2 className="font-display text-2xl font-light text-foreground">Stock</h2>
-          <Button onClick={() => setView("add")} className="rounded-xl bg-primary text-primary-foreground font-body font-semibold text-sm px-4 h-9 shadow-md btn-press">
-            <Plus className="w-4 h-4 mr-1" /> Add Stock
-          </Button>
+          <div className="flex gap-2">
+            <button onClick={() => setView("all-tiles")} className="rounded-xl bg-card border border-border text-foreground font-body font-semibold text-sm px-4 h-9 flex items-center gap-1.5 btn-press shadow-sm">
+              <List className="w-4 h-4" /> All Tiles
+            </button>
+            <Button onClick={() => setView("add")} className="rounded-xl bg-primary text-primary-foreground font-body font-semibold text-sm px-4 h-9 shadow-md btn-press">
+              <Plus className="w-4 h-4 mr-1" /> Add Stock
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-3 mb-6">
