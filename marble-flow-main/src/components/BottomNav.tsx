@@ -1,4 +1,4 @@
-import { Home, Search, Package, ClipboardList } from "lucide-react";
+import { Home, Search, Package, ClipboardList, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface BottomNavProps {
@@ -7,10 +7,11 @@ interface BottomNavProps {
 }
 
 const tabs = [
-  { id: "home", label: "Home", icon: Home },
-  { id: "search", label: "Search", icon: Search },
-  { id: "stock", label: "Stock", icon: Package },
-  { id: "logs", label: "Logs", icon: ClipboardList },
+  { id: "home",      label: "Home",      icon: Home },
+  { id: "search",    label: "Search",    icon: Search },
+  { id: "stock",     label: "Stock",     icon: Package },
+  { id: "analytics", label: "Analytics", icon: BarChart3 },
+  { id: "logs",      label: "Logs",      icon: ClipboardList },
 ];
 
 export default function BottomNav({ active, onNavigate }: BottomNavProps) {
@@ -25,12 +26,12 @@ export default function BottomNav({ active, onNavigate }: BottomNavProps) {
               key={tab.id}
               onClick={() => onNavigate(tab.id)}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl transition-all duration-200 btn-press",
+                "flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl transition-all duration-200 btn-press",
                 isActive ? "text-primary" : "text-muted-foreground"
               )}
             >
               <Icon className={cn("w-5 h-5 transition-transform", isActive && "scale-110")} strokeWidth={isActive ? 2.5 : 1.5} />
-              <span className={cn("text-[10px] font-body tracking-wide", isActive ? "font-semibold" : "font-normal")}>
+              <span className={cn("text-[9px] font-body tracking-wide", isActive ? "font-semibold" : "font-normal")}>
                 {tab.label}
               </span>
               {isActive && <div className="w-4 h-0.5 rounded-full bg-primary mt-0.5" />}
