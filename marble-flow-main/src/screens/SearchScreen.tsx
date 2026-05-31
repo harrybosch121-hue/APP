@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Search, MapPin } from "lucide-react";
-import { useInventory } from "@/context/InventoryContext";
+import { useInventory, displayType } from "@/context/InventoryContext";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +16,7 @@ export default function SearchScreen({ onSelectTile }: SearchScreenProps) {
   const filtered = tiles.filter(
     (t) =>
       t.name.toLowerCase().includes(query.toLowerCase()) ||
+      displayType(t.type).toLowerCase().includes(query.toLowerCase()) ||
       t.type.toLowerCase().includes(query.toLowerCase()) ||
       t.location.toLowerCase().includes(query.toLowerCase())
   );
@@ -31,7 +32,6 @@ export default function SearchScreen({ onSelectTile }: SearchScreenProps) {
       <div className="px-5">
         <h2 className="font-display text-2xl font-light text-foreground mb-4">Search Tiles</h2>
 
-        {/* Search bar */}
         <div className="relative mb-6">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <input
@@ -42,7 +42,6 @@ export default function SearchScreen({ onSelectTile }: SearchScreenProps) {
           />
         </div>
 
-        {/* Results */}
         <div className="space-y-3">
           {loading
             ? Array.from({ length: 3 }).map((_, i) => (
@@ -63,21 +62,17 @@ export default function SearchScreen({ onSelectTile }: SearchScreenProps) {
                   )}
                   style={{ animationDelay: `${i * 0.05}s` }}
                 >
-                  <img
-                    src={tile.image}
-                    alt={tile.name}
-                    className="w-16 h-16 rounded-xl object-cover"
-                  />
+                  <img src={tile.image} alt={tile.name} className="w-16 h-16 rounded-xl object-cover" />
                   <div className="flex-1 min-w-0">
                     <p className="font-body text-sm font-semibold text-foreground truncate">{tile.name}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <Badge variant="secondary" className="text-[10px] font-medium bg-primary/10 text-primary border-0">
-                        {tile.type}
+                        {displayType(tile.type)}
                       </Badge>
                       <span className="text-xs text-muted-foreground">{tile.quantity} {tile.quantityUnit}</span>
                     </div>
                     <div className="flex items-center gap-1 mt-1.5 text-xs text-muted-foreground">
-                      <MapPin className="w-3 h-3" /> {tile.location}
+                      <MapPin className="w-3.5 h-3.5" /> {tile.location}
                     </div>
                   </div>
                 </button>
