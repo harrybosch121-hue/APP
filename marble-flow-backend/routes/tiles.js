@@ -16,7 +16,7 @@ router.get('/', requireAuth, async (_req, res) => {
 });
 
 router.post('/', requireAuth, async (req, res) => {
-  const { name, type, size, quantity, quantityUnit, location, image } = req.body;
+  const { name, type, size, quantity, quantityUnit, location, image, source } = req.body;
   if (!name || !type || !size || quantity === undefined || !quantityUnit || !location) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
@@ -24,8 +24,8 @@ router.post('/', requireAuth, async (req, res) => {
   try {
     const id = randomUUID();
     await pool.query(
-      'INSERT INTO tiles (id, name, type, size, quantity, "quantityUnit", location, image) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-      [id, name, type, size, quantity, quantityUnit, location, image || null]
+      'INSERT INTO tiles (id, name, type, size, quantity, "quantityUnit", location, image, source) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+      [id, name, type, size, quantity, quantityUnit, location, image || null, source || 'manual']
     );
 
     const logId = randomUUID();
@@ -34,7 +34,7 @@ router.post('/', requireAuth, async (req, res) => {
       [logId, req.user.username, 'Added', name, quantity, quantityUnit, location, new Date().toISOString()]
     );
 
-    res.status(201).json({ id, name, type, size, quantity, quantityUnit, location, image: image || null });
+    res.status(201).json({ id, name, type, size, quantity, quantityUnit, location, image: image || null, source: source || 'manual' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
