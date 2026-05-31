@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Minus, Plus, Upload, ArrowLeft, Warehouse, RefreshCw } from "lucide-react";
+import { Minus, Plus, Upload, ArrowLeft, Warehouse, RefreshCw, PackagePlus } from "lucide-react";
 import { useInventory, displayType, TileType, QuantityUnit, TileSize } from "@/context/InventoryContext";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 type BillingProduct = { id: string; name: string };
 
 function AddStockForm({ onBack }: { onBack: () => void }) {
-  const { addTile } = useInventory();
+  const { addTile, tiles } = useInventory();
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState<number | "">("");
   const [quantityUnit, setQuantityUnit] = useState<QuantityUnit>("Box");
@@ -47,9 +47,29 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
     return () => { activeRef.current = false; };
   }, [loadBillingProducts]);
 
-  const filteredProductSuggestions = billingProducts
-    .filter((p) => p.name.toLowerCase().includes(name.toLowerCase()))
-    .slice(0, 8);
+  // Merge billing products + existing inventory tile names, deduplicated
+  const allProductNames = Array.from(
+    new Set([
+      ...billingProducts.map((p) => p.name),
+      ...tiles.map((t) => t.name),
+    ])
+  ).sort();
+
+  const filteredSuggestions = name.trim() === ""
+    ? []
+    : allProductNames.filter((n) => n.toLowerCase().includes(name.toLowerCase())).slice(0, 10);
+
+  const noMatch = name.trim() !== "" && filteredSuggestions.length === 0;
+
+  const handleSelectSuggestion = (productName: string) => {
+    setName(productName);
+    setShowSuggestions(false);
+  };
+
+  const handleAddAsNew = () => {
+    setShowSuggestions(false);
+    toast.info(`"${name}" will be added as a new product`);
+  };
 
   const handleSave = async () => {
     if (!name.trim() || !location.trim()) { toast.error("Please fill in all fields"); return; }
@@ -88,20 +108,29 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
               placeholder="Start typing product name"
               className="w-full px-4 py-3 rounded-xl bg-card border border-border text-foreground placeholder:text-muted-foreground font-body text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-shadow" />
             {billingProductsError && <p className="mt-2 text-xs text-destructive">{billingProductsError}</p>}
-            {showSuggestions && name.trim() !== "" && filteredProductSuggestions.length > 0 && (
+
+            {showSuggestions && name.trim() !== "" && (
               <div className="absolute left-0 right-0 z-10 mt-2 rounded-2xl bg-card border border-border shadow-lg overflow-hidden">
-                {filteredProductSuggestions.map((product) => (
-                  <button key={product.id} type="button"
-                    onMouseDown={() => { setName(product.name); setShowSuggestions(false); }}
-                    className="w-full text-left px-4 py-3 text-sm text-foreground hover:bg-primary/10">
-                    {product.name}
+                {filteredSuggestions.map((productName) => (
+                  <button key={productName} type="button"
+                    onMouseDown={() => handleSelectSuggestion(productName)}
+                    className="w-full text-left px-4 py-3 text-sm text-foreground hover:bg-primary/10 transition-colors">
+                    {productName}
                   </button>
                 ))}
-              </div>
-            )}
-            {showSuggestions && name.trim() !== "" && filteredProductSuggestions.length === 0 && billingProducts.length > 0 && (
-              <div className="absolute left-0 right-0 z-10 mt-2 rounded-2xl bg-card border border-border shadow-lg overflow-hidden">
-                <div className="px-4 py-3 text-sm text-muted-foreground">No matching products found</div>
+                {noMatch && (
+                  <div>
+                    <div className="px-4 py-2.5 text-xs text-muted-foreground border-b border-border">
+                      No product named “<span className="text-foreground font-medium">{name}</span>” found
+                    </div>
+                    <button type="button"
+                      onMouseDown={handleAddAsNew}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-primary hover:bg-primary/10 transition-colors">
+                      <PackagePlus className="w-4 h-4" />
+                      Add “{name}” as new product
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -185,7 +214,6 @@ export default function StockScreen() {
   const filteredDesigns = designSizeFilter === "all" ? tiles : tiles.filter((t) => t.size === designSizeFilter);
   const allSizes = Array.from(new Set(tiles.map((t) => t.size))).sort();
 
-  // Merge MattyGloss + Carving into one "Carving" group
   const normalizeType = (t: string) => t === "MattyGloss" ? "Carving" : t;
   const typeGroups = ["Gloss", "Matt", "Carving"] as const;
   const godowns = Array.from(new Set(tiles.map((t) => t.location))).sort();
@@ -233,51 +261,30 @@ export default function StockScreen() {
             const sqFt = typeTiles.filter((t) => t.quantityUnit === "Sq Ft").reduce((s, t) => s + t.quantity, 0);
             const box  = typeTiles.filter((t) => t.quantityUnit === "Box").reduce((s, t) => s + t.quantity, 0);
             return (
-              <div key={label} className="p-3 rounded-2xl premium-card">
-                <p className="font-body text-xs font-semibold text-primary mb-1 truncate">{label}</p>
-                <p className="font-body text-xs text-muted-foreground mb-1">{typeTiles.length} designs</p>
-                {sqFt > 0 && <p className="font-body text-xs text-foreground">{sqFt.toLocaleString()} <span className="text-muted-foreground">Sq Ft</span></p>}
-                {box  > 0 && <p className="font-body text-xs text-foreground">{box.toLocaleString()} <span className="text-muted-foreground">Box</span></p>}
-                {sqFt === 0 && box === 0 && <p className="font-body text-xs text-muted-foreground">—</p>}
+              <div key={label} className="p-4 rounded-2xl premium-card">
+                <p className="font-body text-xs text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
+                {sqFt > 0 && <p className="font-display text-lg font-semibold text-foreground">{sqFt.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">sq ft</span></p>}
+                {box > 0  && <p className="font-display text-lg font-semibold text-foreground">{box.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">box</span></p>}
               </div>
             );
           })}
         </div>
 
-        <h3 className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">By Size</h3>
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          {allSizes.map((sz) => {
-            const sizeTiles = tiles.filter((t) => t.size === sz);
-            const sqFt = sizeTiles.filter((t) => t.quantityUnit === "Sq Ft").reduce((s, t) => s + t.quantity, 0);
-            const box  = sizeTiles.filter((t) => t.quantityUnit === "Box").reduce((s, t) => s + t.quantity, 0);
-            return (
-              <div key={sz} className="p-3 rounded-2xl premium-card">
-                <p className="font-body text-xs font-semibold text-primary mb-2">{sz}</p>
-                {sqFt > 0 && <p className="font-body text-xs text-foreground">{sqFt.toLocaleString()} <span className="text-muted-foreground">Sq Ft</span></p>}
-                {box  > 0 && <p className="font-body text-xs text-foreground">{box.toLocaleString()} <span className="text-muted-foreground">Box</span></p>}
-                {sqFt === 0 && box === 0 && <p className="font-body text-xs text-muted-foreground">—</p>}
-              </div>
-            );
-          })}
-        </div>
-
-        <h3 className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Godown Wise</h3>
-        <div className="space-y-3">
+        <h3 className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">By Godown</h3>
+        <div className="space-y-2 mb-6">
           {godowns.map((godown) => {
             const godownTiles = tiles.filter((t) => t.location === godown);
             const sqFt = godownTiles.filter((t) => t.quantityUnit === "Sq Ft").reduce((s, t) => s + t.quantity, 0);
             const box  = godownTiles.filter((t) => t.quantityUnit === "Box").reduce((s, t) => s + t.quantity, 0);
             return (
-              <div key={godown} className="p-4 rounded-2xl premium-card">
-                <div className="flex items-center gap-2 mb-3">
-                  <Warehouse className="w-4 h-4 text-primary" />
-                  <p className="font-body text-sm font-semibold text-foreground">{godown}</p>
-                  <span className="ml-auto font-body text-xs text-muted-foreground">{godownTiles.length} tile{godownTiles.length !== 1 ? "s" : ""}</span>
+              <div key={godown} className="flex items-center justify-between p-4 rounded-2xl premium-card">
+                <div className="flex items-center gap-3">
+                  <Warehouse className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-body text-sm text-foreground">{godown}</span>
                 </div>
-                <div className="flex gap-4">
-                  {sqFt > 0 && <div><p className="font-display text-xl font-semibold text-foreground">{sqFt.toLocaleString()}</p><p className="font-body text-xs text-muted-foreground">Sq Ft</p></div>}
-                  {box  > 0 && <div><p className="font-display text-xl font-semibold text-foreground">{box.toLocaleString()}</p><p className="font-body text-xs text-muted-foreground">Box</p></div>}
-                  {sqFt === 0 && box === 0 && <p className="font-body text-xs text-muted-foreground">No stock</p>}
+                <div className="text-right">
+                  {sqFt > 0 && <p className="font-body text-sm font-semibold text-foreground">{sqFt.toLocaleString()} sq ft</p>}
+                  {box > 0  && <p className="font-body text-sm font-semibold text-foreground">{box.toLocaleString()} box</p>}
                 </div>
               </div>
             );
