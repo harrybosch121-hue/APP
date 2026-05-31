@@ -79,27 +79,35 @@ import { useState, useEffect, useCallback } from "react";
     );
   }
 
-  function ProductPanel({ types, sizes, godowns }: { types: Item[]; sizes: Item[]; godowns: Item[] }) {
-    const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(true);
+  function ProductPanel({ prefetched, prefetchLoading }: { prefetched: Product[]; prefetchLoading: boolean }) {
+    const [products, setProducts] = useState<Product[]>(prefetched);
+    const [fetched, setFetched] = useState(prefetched.length > 0);
+    const [refreshing, setRefreshing] = useState(false);
     const [adding, setAdding] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [search, setSearch] = useState("");
 
-    const typeOpts = types.length ? types.map(t => t.value!) : TILE_TYPES;
-    const sizeOpts = sizes.length ? sizes.map(s => s.value!) : TILE_SIZES;
-    const godownOpts = godowns.length ? godowns.map(g => g.value!) : [];
+    // Sync when parent's prefetch resolves
+    useEffect(() => {
+      if (prefetched.length > 0 && !fetched) {
+        setProducts(prefetched);
+        setFetched(true);
+      }
+    }, [prefetched, fetched]);
 
-    const load = useCallback(async () => {
-      setLoading(true);
-      try { setProducts(await api.admin.getProducts()); }
+    const refresh = useCallback(async () => {
+      setRefreshing(true);
+      try { const data = await api.admin.getProducts(); setProducts(data); setFetched(true); }
       catch (e: any) { toast.error(e.message); }
-      setLoading(false);
+      setRefreshing(false);
     }, []);
 
-    useEffect(() => { load(); }, [load]);
+    // Only fetch ourselves if parent didn't (e.g. navigated directly with token)
+    useEffect(() => {
+      if (!fetched && !prefetchLoading) refresh();
+    }, [fetched, prefetchLoading, refresh]);
 
     const filtered = products.filter(p =>
       [p.name, p.type, p.size, p.location].some(v => v.toLowerCase().includes(search.toLowerCase()))
@@ -139,24 +147,25 @@ import { useState, useEffect, useCallback } from "react";
       setDeletingId(null);
     };
 
+    const isLoading = prefetchLoading && !fetched;
+
     return (
       <div>
         <div className="flex items-center gap-2 mb-1">
           <PackageSearch className="w-4 h-4 text-indigo-600" />
           <h2 className="font-semibold text-gray-800">Products</h2>
           <span className="ml-auto text-xs text-gray-400">{products.length} product{products.length !== 1 ? "s" : ""}</span>
-          <button onClick={load} className="p-1 rounded-lg text-gray-400 hover:text-gray-600">
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+          {(isLoading || refreshing) && <span className="text-[10px] text-indigo-500 animate-pulse">loading…</span>}
+          <button onClick={refresh} disabled={refreshing} className="p-1 rounded-lg text-gray-400 hover:text-gray-600">
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
           </button>
         </div>
         <p className="text-xs text-gray-400 mb-3">Add, edit, or remove inventory tiles directly.</p>
 
-        {/* Search */}
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search products…"
           className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
 
-        {/* Add form */}
         {adding ? (
           <ProductForm initial={{}} onSave={handleAdd} onCancel={() => setAdding(false)} saving={saving} />
         ) : (
@@ -166,10 +175,7 @@ import { useState, useEffect, useCallback } from "react";
           </button>
         )}
 
-        {/* Product list */}
-        {loading ? (
-          <p className="text-sm text-gray-400 text-center py-8">Loading…</p>
-        ) : filtered.length === 0 ? (
+        {filtered.length === 0 && !isLoading ? (
           <p className="text-sm text-gray-400 text-center py-8">{search ? "No matches" : "No products yet"}</p>
         ) : (
           <div className="space-y-2">
@@ -177,12 +183,7 @@ import { useState, useEffect, useCallback } from "react";
               <div key={p.id} className="rounded-xl border border-gray-100 overflow-hidden">
                 {editingId === p.id ? (
                   <div className="p-2">
-                    <ProductForm
-                      initial={p}
-                      onSave={handleEdit}
-                      onCancel={() => setEditingId(null)}
-                      saving={saving}
-                    />
+                    <ProductForm initial={p} onSave={handleEdit} onCancel={() => setEditingId(null)} saving={saving} />
                   </div>
                 ) : (
                   <div className="flex items-start px-4 py-3 bg-gray-50 gap-3">
@@ -366,21 +367,33 @@ import { useState, useEffect, useCallback } from "react";
     const [sizes, setSizes] = useState<Item[]>([]);
     const [godowns, setGodowns] = useState<Item[]>([]);
     const [users, setUsers] = useState<Item[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [loadingAll, setLoadingAll] = useState(false);
     const [backupStatus, setBackupStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
-    const [loading, setLoading] = useState(false);
+
+    // ── Warm-up: fire the moment this page loads, before login ──────────────────
+    // Gives Railway time to wake up while the user types credentials.
+    useEffect(() => {
+      fetch("/api/health").catch(() => {});
+    }, []);
 
     const load = useCallback(async () => {
       if (!token) return;
-      setLoading(true);
+      setLoadingAll(true);
       try {
-        const [t, s, g, u] = await Promise.all([
-          api.admin.getTypes(), api.admin.getSizes(), api.admin.getGodowns(), api.admin.getUsers()
+        // Fetch ALL data in parallel — products included — so everything is
+        // ready before the user clicks any tab.
+        const [t, s, g, u, p] = await Promise.all([
+          api.admin.getTypes(), api.admin.getSizes(), api.admin.getGodowns(),
+          api.admin.getUsers(), api.admin.getProducts(),
         ]);
-        setTypes(t); setSizes(s); setGodowns(g); setUsers(u);
+        setTypes(t); setSizes(s); setGodowns(g); setUsers(u); setProducts(p);
       } catch (e: any) {
-        if (e.message.includes("401") || e.message.includes("403")) { setToken(null); localStorage.removeItem("admin_token"); }
+        if (e.message.includes("401") || e.message.includes("403")) {
+          setToken(null); localStorage.removeItem("admin_token");
+        }
       }
-      setLoading(false);
+      setLoadingAll(false);
     }, [token]);
 
     useEffect(() => { load(); }, [load]);
@@ -450,8 +463,8 @@ import { useState, useEffect, useCallback } from "react";
             <h1 className="font-bold text-gray-900 text-sm">Admin Panel</h1>
             <p className="text-[10px] text-gray-400">Inventory Management</p>
           </div>
-          <button onClick={load} disabled={loading} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          <button onClick={load} disabled={loadingAll} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600">
+            <RefreshCw className={`w-4 h-4 ${loadingAll ? "animate-spin" : ""}`} />
           </button>
           <button onClick={() => { api.admin.logout(); setToken(null); }}
             className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 transition-colors">
@@ -472,50 +485,42 @@ import { useState, useEffect, useCallback } from "react";
         <div className="p-4 max-w-lg mx-auto">
           {tab === "products" && (
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-              <ProductPanel types={types} sizes={sizes} godowns={godowns} />
+              <ProductPanel
+                prefetched={products}
+                prefetchLoading={loadingAll}
+              />
             </div>
           )}
           {tab === "types" && (
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-              <TabPanel
-                title="Tile Types" icon={Layers}
-                items={types} label={(i: Item) => i.value!}
+              <TabPanel title="Tile Types" icon={Layers} items={types} label={(i: Item) => i.value!}
                 placeholder="e.g. Satin, Stone"
                 onAdd={async (v: string) => { const r = await api.admin.addType(v); setTypes(p => [...p, r]); toast.success(`"${v}" added`); }}
-                onDelete={async (id: string) => { await api.admin.deleteType(id); setTypes(p => p.filter(x => x.id !== id)); toast.success("Removed"); }}
-              />
+                onDelete={async (id: string) => { await api.admin.deleteType(id); setTypes(p => p.filter(x => x.id !== id)); toast.success("Removed"); }} />
             </div>
           )}
           {tab === "sizes" && (
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-              <TabPanel
-                title="Tile Sizes" icon={Ruler}
-                items={sizes} label={(i: Item) => i.value!}
+              <TabPanel title="Tile Sizes" icon={Ruler} items={sizes} label={(i: Item) => i.value!}
                 placeholder="e.g. 3x3, 4x4"
                 onAdd={async (v: string) => { const r = await api.admin.addSize(v); setSizes(p => [...p, r]); toast.success(`"${v}" added`); }}
-                onDelete={async (id: string) => { await api.admin.deleteSize(id); setSizes(p => p.filter(x => x.id !== id)); toast.success("Removed"); }}
-              />
+                onDelete={async (id: string) => { await api.admin.deleteSize(id); setSizes(p => p.filter(x => x.id !== id)); toast.success("Removed"); }} />
             </div>
           )}
           {tab === "godowns" && (
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-              <TabPanel
-                title="Godowns" icon={Warehouse}
-                items={godowns} label={(i: Item) => i.value!}
+              <TabPanel title="Godowns" icon={Warehouse} items={godowns} label={(i: Item) => i.value!}
                 placeholder="e.g. C Godown, New Store"
                 onAdd={async (v: string) => { const r = await api.admin.addGodown(v); setGodowns(p => [...p, r]); toast.success(`"${v}" added`); }}
-                onDelete={async (id: string) => { await api.admin.deleteGodown(id); setGodowns(p => p.filter(x => x.id !== id)); toast.success("Removed"); }}
-              />
+                onDelete={async (id: string) => { await api.admin.deleteGodown(id); setGodowns(p => p.filter(x => x.id !== id)); toast.success("Removed"); }} />
             </div>
           )}
           {tab === "users" && (
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-              <UserPanel
-                users={users}
+              <UserPanel users={users}
                 onAdd={async (u: string, pw: string) => { const r = await api.admin.addUser(u, pw); setUsers(p => [...p, r]); toast.success(`User "${u}" created`); }}
                 onDelete={async (id: string) => { await api.admin.deleteUser(id); setUsers(p => p.filter(x => x.id !== id)); toast.success("User removed"); }}
-                onChangePassword={async (id: string, pw: string) => { await api.admin.changePassword(id, pw); toast.success("Password updated"); }}
-              />
+                onChangePassword={async (id: string, pw: string) => { await api.admin.changePassword(id, pw); toast.success("Password updated"); }} />
             </div>
           )}
           {tab === "backup" && (
@@ -537,28 +542,16 @@ import { useState, useEffect, useCallback } from "react";
               <button
                 onClick={async () => {
                   setBackupStatus("sending");
-                  try {
-                    await api.admin.triggerBackup();
-                    setBackupStatus("done");
-                    toast.success("Backup sent to Telegram!");
-                  } catch (e: any) {
-                    setBackupStatus("error");
-                    toast.error("Backup failed: " + e.message);
-                  }
+                  try { await api.admin.triggerBackup(); setBackupStatus("done"); toast.success("Backup sent to Telegram!"); }
+                  catch (e: any) { setBackupStatus("error"); toast.error("Backup failed: " + e.message); }
                 }}
                 disabled={backupStatus === "sending"}
                 className="w-full py-3 rounded-xl bg-indigo-600 text-white font-semibold text-sm shadow-md disabled:opacity-50 flex items-center justify-center gap-2">
-                {backupStatus === "sending" ? (
-                  <><RefreshCw className="w-4 h-4 animate-spin" /> Sending…</>
-                ) : backupStatus === "done" ? (
-                  <><Send className="w-4 h-4" /> Sent Successfully</>
-                ) : (
-                  <><Send className="w-4 h-4" /> Send Backup Now</>
-                )}
+                {backupStatus === "sending" ? (<><RefreshCw className="w-4 h-4 animate-spin" /> Sending…</>)
+                  : backupStatus === "done" ? (<><Send className="w-4 h-4" /> Sent Successfully</>)
+                  : (<><Send className="w-4 h-4" /> Send Backup Now</>)}
               </button>
-              {backupStatus === "done" && (
-                <p className="text-xs text-green-600 text-center mt-2">✓ Backup delivered to Telegram</p>
-              )}
+              {backupStatus === "done" && <p className="text-xs text-green-600 text-center mt-2">✓ Backup delivered to Telegram</p>}
             </div>
           )}
         </div>
