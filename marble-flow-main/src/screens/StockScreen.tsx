@@ -22,7 +22,10 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
   const [billingProductsError, setBillingProductsError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const activeRef = useRef(true);
+    const [dynamicTypes, setDynamicTypes] = useState<string[]>(["Gloss", "Matt", "Carving"]);
+    const [dynamicSizes, setDynamicSizes] = useState<string[]>(["2x2", "2x4", "12x18"]);
+    const [dynamicGodowns, setDynamicGodowns] = useState<string[]>([]);
+    const activeRef = useRef(true);
 
   const loadBillingProducts = useCallback(async (isManual = false) => {
     if (isManual) setIsRefreshing(true);
@@ -42,10 +45,23 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
   }, []);
 
   useEffect(() => {
-    activeRef.current = true;
-    loadBillingProducts(false);
-    return () => { activeRef.current = false; };
-  }, [loadBillingProducts]);
+      activeRef.current = true;
+      loadBillingProducts(false);
+      Promise.all([
+        fetch("/api/admin/types").then(r => r.json()).catch(() => []),
+        fetch("/api/admin/sizes").then(r => r.json()).catch(() => []),
+        fetch("/api/admin/godowns").then(r => r.json()).catch(() => []),
+      ]).then(([types, sizes, godowns]) => {
+        if (!activeRef.current) return;
+        if (Array.isArray(types) && types.length > 0) setDynamicTypes(types.map((t: { value: string }) => t.value));
+        if (Array.isArray(sizes) && sizes.length > 0) setDynamicSizes(sizes.map((s: { value: string }) => s.value));
+        if (Array.isArray(godowns) && godowns.length > 0) {
+          setDynamicGodowns(godowns.map((g: { value: string }) => g.value));
+          setLocation((prev) => prev || godowns[0]?.value || "");
+        }
+      });
+      return () => { activeRef.current = false; };
+    }, [loadBillingProducts]);
 
   // Merge billing products + existing inventory tile names, deduplicated
   const allProductNames = Array.from(
@@ -159,9 +175,7 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
             <Select value={type} onValueChange={(v) => setType(v as TileType)}>
               <SelectTrigger className="rounded-xl bg-card border-border h-12"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="Gloss">Gloss</SelectItem>
-                <SelectItem value="Matt">Matt</SelectItem>
-                <SelectItem value="Carving">Carving</SelectItem>
+                {dynamicTypes.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -170,9 +184,7 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
             <Select value={size} onValueChange={(v) => setSize(v as TileSize)}>
               <SelectTrigger className="rounded-xl bg-card border-border h-12"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="2x2">2x2</SelectItem>
-                <SelectItem value="2x4">2x4</SelectItem>
-                <SelectItem value="12x18">12x18</SelectItem>
+                {dynamicSizes.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -181,12 +193,7 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
             <Select value={location} onValueChange={setLocation}>
               <SelectTrigger className="rounded-xl bg-card border-border h-12"><SelectValue placeholder="Select godown" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="D Godown">D Godown</SelectItem>
-                <SelectItem value="A Godown">A Godown</SelectItem>
-                <SelectItem value="B1 Godown">B1 Godown</SelectItem>
-                <SelectItem value="B2 Godown">B2 Godown</SelectItem>
-                <SelectItem value="Main Godown">Main Godown</SelectItem>
-                <SelectItem value="Side Godown">Side Godown</SelectItem>
+                {dynamicGodowns.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
