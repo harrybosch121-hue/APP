@@ -1,5 +1,8 @@
 import { ArrowUp, ArrowDown, BarChart3, TrendingUp, TrendingDown } from "lucide-react";
-import { useInventory } from "@/context/InventoryContext";
+import { useInventory, displayType } from "@/context/InventoryContext";
+
+const normalizeType = (t: string) => t === "MattyGloss" ? "Carving" : t;
+const TYPE_GROUPS = ["Gloss", "Matt", "Carving"] as const;
 
 export default function AnalyticsScreen() {
   const { tiles } = useInventory();
@@ -9,25 +12,23 @@ export default function AnalyticsScreen() {
   const bottom5    = [...withStock].sort((a, b) => a.quantity - b.quantity).slice(0, 5);
   const zeroStock  = tiles.filter((t) => t.quantity === 0);
 
-  const allTypes = Array.from(new Set(tiles.map((t) => t.type)));
-  const typeBreakdown = allTypes.map((tp) => {
-    const typeTiles = tiles.filter((t) => t.type === tp);
+  const typeBreakdown = TYPE_GROUPS.map((label) => {
+    const typeTiles = tiles.filter((t) => normalizeType(t.type) === label);
     const sqFt = typeTiles.filter((t) => t.quantityUnit === "Sq Ft").reduce((s, t) => s + t.quantity, 0);
     const box  = typeTiles.filter((t) => t.quantityUnit === "Box").reduce((s, t) => s + t.quantity, 0);
-    const label = tp === "MattyGloss" ? "Carving" : tp;
-    return { label, tp, count: typeTiles.length, sqFt, box };
-  }).filter((x) => x.count > 0).sort((a, b) => (b.sqFt + b.box) - (a.sqFt + a.box));
+    return { label, count: typeTiles.length, sqFt, box };
+  }).filter((x) => x.count > 0);
 
   const maxSqFt = Math.max(...typeBreakdown.map((x) => x.sqFt), 1);
   const maxBox  = Math.max(...typeBreakdown.map((x) => x.box), 1);
 
-  const allSizes = Array.from(new Set(tiles.map((t) => t.size)));
+  const allSizes = Array.from(new Set(tiles.map((t) => t.size))).sort();
   const sizeBreakdown = allSizes.map((sz) => {
     const szTiles = tiles.filter((t) => t.size === sz);
     const sqFt = szTiles.filter((t) => t.quantityUnit === "Sq Ft").reduce((s, t) => s + t.quantity, 0);
     const box  = szTiles.filter((t) => t.quantityUnit === "Box").reduce((s, t) => s + t.quantity, 0);
     return { sz, count: szTiles.length, sqFt, box };
-  }).filter((x) => x.count > 0).sort((a, b) => (b.sqFt + b.box) - (a.sqFt + a.box));
+  }).filter((x) => x.count > 0);
 
   return (
     <div className="min-h-screen premium-bg marble-noise pb-24 pt-4">
@@ -58,7 +59,7 @@ export default function AnalyticsScreen() {
           <p className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">Stock by Type</p>
           <div className="space-y-5">
             {typeBreakdown.map((tp) => (
-              <div key={tp.tp}>
+              <div key={tp.label}>
                 <div className="flex justify-between mb-1">
                   <span className="font-body text-sm font-semibold text-foreground">{tp.label}</span>
                   <span className="font-body text-xs text-muted-foreground">{tp.count} designs</span>
@@ -119,7 +120,7 @@ export default function AnalyticsScreen() {
               <span className="font-display text-sm font-bold text-primary w-5 text-center">{i + 1}</span>
               <div className="flex-1 min-w-0">
                 <p className="font-body text-sm font-medium text-foreground truncate">{t.name}</p>
-                <p className="font-body text-xs text-muted-foreground">{t.type === "MattyGloss" ? "Carving" : t.type} · {t.size} · {t.location}</p>
+                <p className="font-body text-xs text-muted-foreground">{displayType(t.type)} · {t.size} · {t.location}</p>
               </div>
               <div className="text-right flex-shrink-0 flex items-center gap-1">
                 <ArrowUp className="w-3 h-3 text-primary" />
@@ -144,7 +145,7 @@ export default function AnalyticsScreen() {
               <span className="font-display text-sm font-bold text-destructive w-5 text-center">{i + 1}</span>
               <div className="flex-1 min-w-0">
                 <p className="font-body text-sm font-medium text-foreground truncate">{t.name}</p>
-                <p className="font-body text-xs text-muted-foreground">{t.type === "MattyGloss" ? "Carving" : t.type} · {t.size} · {t.location}</p>
+                <p className="font-body text-xs text-muted-foreground">{displayType(t.type)} · {t.size} · {t.location}</p>
               </div>
               <div className="text-right flex-shrink-0 flex items-center gap-1">
                 <ArrowDown className="w-3 h-3 text-destructive" />
@@ -168,7 +169,7 @@ export default function AnalyticsScreen() {
                 <div key={t.id} className="flex items-center gap-3 p-3 rounded-2xl bg-destructive/5 border border-destructive/20">
                   <div className="flex-1 min-w-0">
                     <p className="font-body text-sm font-medium text-foreground truncate">{t.name}</p>
-                    <p className="font-body text-xs text-muted-foreground">{t.type === "MattyGloss" ? "Carving" : t.type} · {t.size} · {t.location}</p>
+                    <p className="font-body text-xs text-muted-foreground">{displayType(t.type)} · {t.size} · {t.location}</p>
                   </div>
                   <span className="font-body text-xs text-destructive font-bold">EMPTY</span>
                 </div>
