@@ -42,8 +42,8 @@ import { useState } from "react";
 
     return (
       <div className="min-h-screen premium-bg marble-noise pb-20">
-        {/* Hero: tile image as full-bleed background */}
-        <div className="relative w-full h-72 overflow-hidden">
+        {/* Hero: tile image as full-bleed background, ~60% of viewport height */}
+        <div className="relative w-full overflow-hidden" style={{ height: "60vh", minHeight: "280px" }}>
           {tile.image ? (
             <img
               src={tile.image}
@@ -53,20 +53,23 @@ import { useState } from "react";
           ) : (
             <div className="w-full h-full bg-muted" />
           )}
-          {/* Dark gradient so text is readable */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/15 to-black/20" />
+          {/* Gradient: transparent top → dark bottom for text legibility */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-black/25" />
 
           {/* Back button */}
-          <button onClick={onBack} className="absolute top-5 left-4 flex items-center gap-2 text-white btn-press z-10">
+          <button
+            onClick={onBack}
+            className="absolute top-5 left-4 flex items-center gap-2 text-white btn-press z-10"
+          >
             <ArrowLeft className="w-5 h-5" />
             <span className="font-body text-sm">Back</span>
           </button>
 
           {/* Tile name + meta overlaid at the bottom of the hero */}
-          <div className="absolute bottom-0 left-0 right-0 px-5 pb-5 animate-fade-in">
-            <h2 className="font-display text-2xl font-semibold text-white leading-tight">{tile.name}</h2>
-            <div className="flex items-center gap-3 mt-1.5">
-              <Badge className="bg-primary/80 text-white border-0 font-body backdrop-blur-sm">
+          <div className="absolute bottom-0 left-0 right-0 px-5 pb-6 animate-fade-in">
+            <h2 className="font-display text-3xl font-semibold text-white leading-tight">{tile.name}</h2>
+            <div className="flex items-center gap-3 mt-2">
+              <Badge className="bg-primary/80 text-white border-0 font-body backdrop-blur-sm px-3 py-1">
                 {displayType(tile.type)}
               </Badge>
               <div className="flex items-center gap-1 text-sm text-white/80">
