@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Minus, Plus, Upload, ArrowLeft, Warehouse, RefreshCw } from "lucide-react";
-import { useInventory, TileType, QuantityUnit, TileSize } from "@/context/InventoryContext";
+import { useInventory, displayType, TileType, QuantityUnit, TileSize } from "@/context/InventoryContext";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import marbleTile from "@/assets/marble-tile.jpeg";
@@ -34,16 +34,6 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
       if (isManual) toast.success(`Loaded ${(products || []).length} products`);
     } catch {
       if (!activeRef.current) return;
-      if (import.meta.env.VITE_BILLING_API_URL) {
-        try {
-          const products = await api.getBillingProductsFromBilling();
-          if (!activeRef.current) return;
-          setBillingProducts(products || []);
-          setBillingProductsError(null);
-          if (isManual) toast.success(`Loaded ${(products || []).length} products`);
-          return;
-        } catch { /* fallback failed */ }
-      }
       setBillingProductsError("Unable to load product names from billing");
       if (isManual) toast.error("Could not reach billing service");
     } finally {
@@ -138,7 +128,7 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
               <SelectContent>
                 <SelectItem value="Gloss">Gloss</SelectItem>
                 <SelectItem value="Matt">Matt</SelectItem>
-                <SelectItem value="MattyGloss">MattyGloss</SelectItem>
+                <SelectItem value="Carving">Carving</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -194,8 +184,11 @@ export default function StockScreen() {
   const totalBox  = tiles.filter((t) => t.quantityUnit === "Box").reduce((s, t) => s + t.quantity, 0);
   const filteredDesigns = designSizeFilter === "all" ? tiles : tiles.filter((t) => t.size === designSizeFilter);
   const allSizes = Array.from(new Set(tiles.map((t) => t.size))).sort();
-  const allTypes = Array.from(new Set(tiles.map((t) => t.type))).sort();
-  const godowns  = Array.from(new Set(tiles.map((t) => t.location))).sort();
+
+  // Merge MattyGloss + Carving into one "Carving" group
+  const normalizeType = (t: string) => t === "MattyGloss" ? "Carving" : t;
+  const typeGroups = ["Gloss", "Matt", "Carving"] as const;
+  const godowns = Array.from(new Set(tiles.map((t) => t.location))).sort();
 
   return (
     <div className="min-h-screen premium-bg marble-noise pb-20 pt-4">
@@ -234,13 +227,13 @@ export default function StockScreen() {
 
         <h3 className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">By Type</h3>
         <div className="grid grid-cols-3 gap-3 mb-6">
-          {allTypes.map((tp) => {
-            const typeTiles = tiles.filter((t) => t.type === tp);
+          {typeGroups.map((label) => {
+            const typeTiles = tiles.filter((t) => normalizeType(t.type) === label);
+            if (typeTiles.length === 0) return null;
             const sqFt = typeTiles.filter((t) => t.quantityUnit === "Sq Ft").reduce((s, t) => s + t.quantity, 0);
             const box  = typeTiles.filter((t) => t.quantityUnit === "Box").reduce((s, t) => s + t.quantity, 0);
-            const label = tp === "MattyGloss" ? "Carving" : tp;
             return (
-              <div key={tp} className="p-3 rounded-2xl premium-card">
+              <div key={label} className="p-3 rounded-2xl premium-card">
                 <p className="font-body text-xs font-semibold text-primary mb-1 truncate">{label}</p>
                 <p className="font-body text-xs text-muted-foreground mb-1">{typeTiles.length} designs</p>
                 {sqFt > 0 && <p className="font-body text-xs text-foreground">{sqFt.toLocaleString()} <span className="text-muted-foreground">Sq Ft</span></p>}
