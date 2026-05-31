@@ -55,8 +55,8 @@ initDb()
   .then(() => {
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
-    // Daily Telegram backup at 2:00 AM
-    cron.schedule('0 2 * * *', async () => {
+    // Hourly Telegram backup
+    cron.schedule('0 * * * *', async () => {
       console.log('Running scheduled Telegram backup...');
       try {
         await sendBackup(pool);
