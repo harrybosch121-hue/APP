@@ -211,12 +211,17 @@ export default function StockScreen() {
   const [view, setView] = useState<"overview" | "add" | "all-tiles">("overview");
     const [allTilesSearch, setAllTilesSearch] = useState("");
     const [allTilesSearchBy, setAllTilesSearchBy] = useState<"name" | "godown" | "size" | "type">("name");
+    const [allTilesSort, setAllTilesSort] = useState<"qty-desc" | "qty-asc" | "az">("qty-desc");
   const [designSizeFilter, setDesignSizeFilter] = useState<TileSize | "all">("all");
 
   if (view === "add") return <AddStockForm onBack={() => setView("overview")} />;
 
     if (view === "all-tiles") {
-      const allInStock = tiles.filter((t) => t.quantity > 0).sort((a, b) => b.quantity - a.quantity);
+      const allInStock = tiles.filter((t) => t.quantity > 0).sort((a, b) => {
+        if (allTilesSort === "qty-asc") return a.quantity - b.quantity;
+        if (allTilesSort === "az")      return a.name.localeCompare(b.name);
+        return b.quantity - a.quantity; // qty-desc default
+      });
       const query = allTilesSearch.trim().toLowerCase();
       const displayed = query
         ? allInStock.filter((t) => {
@@ -278,6 +283,27 @@ export default function StockScreen() {
                   </button>
                 )}
               </div>
+            </div>
+
+            {/* Sort pills */}
+            <div className="flex gap-2 mb-4">
+              {([
+                { key: "qty-desc", label: "Highest Stock" },
+                { key: "qty-asc",  label: "Lowest Stock"  },
+                { key: "az",       label: "A – Z"          },
+              ] as const).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setAllTilesSort(key)}
+                  className={`px-3 h-8 rounded-full font-body text-xs font-semibold border btn-press transition-colors ${
+                    allTilesSort === key
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-card text-muted-foreground border-border hover:border-primary/40"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
             {displayed.length === 0 ? (
