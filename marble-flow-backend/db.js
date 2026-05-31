@@ -37,6 +37,24 @@ async function initDb() {
       location TEXT NOT NULL,
       timestamp TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS config_types (
+      id TEXT PRIMARY KEY,
+      value TEXT UNIQUE NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS config_sizes (
+      id TEXT PRIMARY KEY,
+      value TEXT UNIQUE NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS config_godowns (
+      id TEXT PRIMARY KEY,
+      value TEXT UNIQUE NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
   `);
 
   const { rows } = await pool.query('SELECT COUNT(*) AS count FROM users');
@@ -48,6 +66,28 @@ async function initDb() {
     );
     console.log('Default user created — username: admin  password: 1234');
   }
+
+  const { rows: typeRows } = await pool.query('SELECT COUNT(*) AS count FROM config_types');
+  if (parseInt(typeRows[0].count) === 0) {
+    for (const v of ['Gloss', 'Matt', 'Carving']) {
+      await pool.query('INSERT INTO config_types (id, value) VALUES ($1, $2) ON CONFLICT DO NOTHING', [randomUUID(), v]);
+    }
+  }
+
+  const { rows: sizeRows } = await pool.query('SELECT COUNT(*) AS count FROM config_sizes');
+  if (parseInt(sizeRows[0].count) === 0) {
+    for (const v of ['2x2', '2x4', '12x18']) {
+      await pool.query('INSERT INTO config_sizes (id, value) VALUES ($1, $2) ON CONFLICT DO NOTHING', [randomUUID(), v]);
+    }
+  }
+
+  const { rows: godownRows } = await pool.query('SELECT COUNT(*) AS count FROM config_godowns');
+  if (parseInt(godownRows[0].count) === 0) {
+    for (const v of ['D Godown', 'A Godown', 'B1 Godown', 'B2 Godown', 'Main Godown', 'Side Godown']) {
+      await pool.query('INSERT INTO config_godowns (id, value) VALUES ($1, $2) ON CONFLICT DO NOTHING', [randomUUID(), v]);
+    }
+  }
 }
 
 module.exports = { pool, initDb };
+
