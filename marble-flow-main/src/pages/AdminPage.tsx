@@ -88,6 +88,7 @@ import { useState, useEffect, useCallback } from "react";
     const [saving, setSaving] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [search, setSearch] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "manual" | "billing">("all");
 
     // Sync when parent's prefetch resolves
     useEffect(() => {
@@ -109,9 +110,12 @@ import { useState, useEffect, useCallback } from "react";
       if (!fetched && !prefetchLoading) refresh();
     }, [fetched, prefetchLoading, refresh]);
 
-    const filtered = products.filter(p =>
-      [p.name, p.type, p.size, p.location].some(v => v.toLowerCase().includes(search.toLowerCase()))
-    );
+    const filtered = products.filter(p => {
+      const q = search.toLowerCase();
+      const matchesSearch = [p.name, p.type, p.size, p.location].some(v => (v ?? "").toLowerCase().includes(q));
+      const matchesSource = sourceFilter === "all" || (p.source ?? "manual") === sourceFilter;
+      return matchesSearch && matchesSource;
+    });
 
     const handleAdd = async (form: Omit<Product, "id">) => {
       setSaving(true);
@@ -161,6 +165,15 @@ import { useState, useEffect, useCallback } from "react";
           </button>
         </div>
         <p className="text-xs text-gray-400 mb-3">Add, edit, or remove inventory tiles directly.</p>
+
+        <div className="flex gap-1 mb-3 p-1 bg-gray-100 rounded-xl">
+          {(["all","manual","billing"] as const).map((val) => (
+            <button key={val} onClick={() => setSourceFilter(val)}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${sourceFilter === val ? "bg-white text-indigo-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+              {val === "all" ? "All" : val === "manual" ? "New Products" : "From Billing"}
+            </button>
+          ))}
+        </div>
 
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search products…"
