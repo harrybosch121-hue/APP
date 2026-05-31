@@ -5,6 +5,7 @@ import HomeScreen from "@/screens/HomeScreen";
 import SearchScreen from "@/screens/SearchScreen";
 import StockScreen from "@/screens/StockScreen";
 import LogsScreen from "@/screens/LogsScreen";
+import AnalyticsScreen from "@/screens/AnalyticsScreen";
 import TileDetailScreen from "@/screens/TileDetailScreen";
 import LoginScreen from "@/screens/LoginScreen";
 
@@ -34,16 +35,12 @@ const Index = () => {
       return <TileDetailScreen tileId={selectedTile} onBack={() => setScreen("search")} />;
     }
     switch (screen) {
-      case "home":
-        return <HomeScreen onNavigate={setScreen} onLogout={handleLogout} />;
-      case "search":
-        return <SearchScreen onSelectTile={handleSelectTile} />;
-      case "stock":
-        return <StockScreen />;
-      case "logs":
-        return <LogsScreen />;
-      default:
-        return <HomeScreen onNavigate={setScreen} onLogout={handleLogout} />;
+      case "home":      return <HomeScreen onNavigate={setScreen} onLogout={handleLogout} />;
+      case "search":    return <SearchScreen onSelectTile={handleSelectTile} />;
+      case "stock":     return <StockScreen />;
+      case "analytics": return <AnalyticsScreen />;
+      case "logs":      return <LogsScreen />;
+      default:          return <HomeScreen onNavigate={setScreen} onLogout={handleLogout} />;
     }
   };
 
