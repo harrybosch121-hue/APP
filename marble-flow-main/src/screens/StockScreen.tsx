@@ -47,19 +47,15 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
   useEffect(() => {
       activeRef.current = true;
       loadBillingProducts(false);
-      Promise.all([
-        fetch("/api/admin/types").then(r => r.json()).catch(() => []),
-        fetch("/api/admin/sizes").then(r => r.json()).catch(() => []),
-        fetch("/api/admin/godowns").then(r => r.json()).catch(() => []),
-      ]).then(([types, sizes, godowns]) => {
+      api.getConfig().then((config) => {
         if (!activeRef.current) return;
-        if (Array.isArray(types) && types.length > 0) setDynamicTypes(types.map((t: { value: string }) => t.value));
-        if (Array.isArray(sizes) && sizes.length > 0) setDynamicSizes(sizes.map((s: { value: string }) => s.value));
-        if (Array.isArray(godowns) && godowns.length > 0) {
-          setDynamicGodowns(godowns.map((g: { value: string }) => g.value));
-          setLocation((prev) => prev || godowns[0]?.value || "");
+        if (Array.isArray(config.types) && config.types.length > 0) setDynamicTypes(config.types);
+        if (Array.isArray(config.sizes) && config.sizes.length > 0) setDynamicSizes(config.sizes);
+        if (Array.isArray(config.godowns) && config.godowns.length > 0) {
+          setDynamicGodowns(config.godowns);
+          setLocation((prev) => prev || config.godowns[0] || "");
         }
-      });
+      }).catch(() => {});
       return () => { activeRef.current = false; };
     }, [loadBillingProducts]);
 
