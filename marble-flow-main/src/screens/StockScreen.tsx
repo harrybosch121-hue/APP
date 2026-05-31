@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Minus, Plus, Upload, ArrowLeft, Warehouse, RefreshCw } from "lucide-react";
+import { Minus, Plus, Upload, ArrowLeft, Warehouse, RefreshCw, TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
 import { useInventory, TileType, QuantityUnit, TileSize } from "@/context/InventoryContext";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -56,13 +56,11 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     activeRef.current = true;
     loadBillingProducts(false);
-    return () => {
-      activeRef.current = false;
-    };
+    return () => { activeRef.current = false; };
   }, [loadBillingProducts]);
 
   const filteredProductSuggestions = billingProducts
-    .filter((product) => product.name.toLowerCase().includes(name.toLowerCase()))
+    .filter((p) => p.name.toLowerCase().includes(name.toLowerCase()))
     .slice(0, 8);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,10 +73,7 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
   };
 
   const handleSave = async () => {
-    if (!name.trim() || !location.trim()) {
-      toast.error("Please fill in all fields");
-      return;
-    }
+    if (!name.trim() || !location.trim()) { toast.error("Please fill in all fields"); return; }
     try {
       await addTile({ name, quantity: Number(quantity) || 0, quantityUnit, type, size, location, image: preview || marbleTile });
       toast.success(`${name} added successfully`);
@@ -120,18 +115,13 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
               placeholder="Start typing product name"
               className="w-full px-4 py-3 rounded-xl bg-card border border-border text-foreground placeholder:text-muted-foreground font-body text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition-shadow"
             />
-            {billingProductsError && (
-              <p className="mt-2 text-xs text-destructive">{billingProductsError}</p>
-            )}
+            {billingProductsError && <p className="mt-2 text-xs text-destructive">{billingProductsError}</p>}
             {showSuggestions && name.trim() !== "" && filteredProductSuggestions.length > 0 && (
               <div className="absolute left-0 right-0 z-10 mt-2 rounded-2xl bg-card border border-border shadow-lg overflow-hidden">
                 {filteredProductSuggestions.map((product) => (
-                  <button
-                    key={product.id}
-                    type="button"
+                  <button key={product.id} type="button"
                     onMouseDown={() => { setName(product.name); setShowSuggestions(false); }}
-                    className="w-full text-left px-4 py-3 text-sm text-foreground hover:bg-primary/10 focus:bg-primary/10"
-                  >
+                    className="w-full text-left px-4 py-3 text-sm text-foreground hover:bg-primary/10">
                     {product.name}
                   </button>
                 ))}
@@ -150,19 +140,14 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
               <button onClick={() => setQuantity((q) => Math.max(0, (Number(q) || 0) - 1))} className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center btn-press text-foreground">
                 <Minus className="w-4 h-4" />
               </button>
-              <input
-                type="number"
-                value={quantity}
+              <input type="number" value={quantity}
                 onChange={(e) => setQuantity(e.target.value === "" ? "" : Number(e.target.value))}
-                className="w-20 text-center py-2 rounded-xl bg-card border border-border text-foreground font-body text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
+                className="w-20 text-center py-2 rounded-xl bg-card border border-border text-foreground font-body text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30" />
               <button onClick={() => setQuantity((q) => (Number(q) || 0) + 1)} className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center btn-press shadow-md">
                 <Plus className="w-4 h-4" />
               </button>
               <Select value={quantityUnit} onValueChange={(v) => setQuantityUnit(v as QuantityUnit)}>
-                <SelectTrigger className="rounded-xl bg-card border-border h-10 min-w-[90px]">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger className="rounded-xl bg-card border-border h-10 min-w-[90px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Sq Ft">Sq Ft</SelectItem>
                   <SelectItem value="Box">Box</SelectItem>
@@ -217,11 +202,7 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
               <span className="font-body text-sm text-muted-foreground">Upload image</span>
               <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
             </label>
-            {preview && (
-              <div className="mt-3">
-                <img src={preview} alt="Preview" className="w-full h-40 object-cover rounded-xl" />
-              </div>
-            )}
+            {preview && <div className="mt-3"><img src={preview} alt="Preview" className="w-full h-40 object-cover rounded-xl" /></div>}
           </div>
 
           <Button onClick={handleSave} className="w-full h-13 rounded-xl bg-primary text-primary-foreground font-body font-semibold text-sm shadow-lg btn-press hover:shadow-xl transition-shadow mt-4">
@@ -233,33 +214,43 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
   );
 }
 
+type StockView = "overview" | "add" | "analytics";
+
 export default function StockScreen() {
   const { tiles } = useInventory();
-  const [view, setView] = useState<"overview" | "add">("overview");
+  const [view, setView] = useState<StockView>("overview");
   const [designSizeFilter, setDesignSizeFilter] = useState<TileSize | "all">("all");
 
-  if (view === "add") {
-    return <AddStockForm onBack={() => setView("overview")} />;
-  }
+  if (view === "add") return <AddStockForm onBack={() => setView("overview")} />;
+  if (view === "analytics") return <AnalyticsView tiles={tiles} onBack={() => setView("overview")} />;
 
-  const totalSqFt = tiles.filter((t) => t.quantityUnit === "Sq Ft").reduce((sum, t) => sum + t.quantity, 0);
-  const totalBox = tiles.filter((t) => t.quantityUnit === "Box").reduce((sum, t) => sum + t.quantity, 0);
+  const totalSqFt = tiles.filter((t) => t.quantityUnit === "Sq Ft").reduce((s, t) => s + t.quantity, 0);
+  const totalBox  = tiles.filter((t) => t.quantityUnit === "Box").reduce((s, t) => s + t.quantity, 0);
   const filteredDesigns = designSizeFilter === "all" ? tiles : tiles.filter((t) => t.size === designSizeFilter);
-  const totalDesigns = filteredDesigns.length;
-
-  const allSizes = Array.from(new Set(tiles.map((t) => t.size))).sort();
-  const godowns = Array.from(new Set(tiles.map((t) => t.location))).sort();
+  const allSizes  = Array.from(new Set(tiles.map((t) => t.size))).sort();
+  const allTypes  = Array.from(new Set(tiles.map((t) => t.type))).sort();
+  const godowns   = Array.from(new Set(tiles.map((t) => t.location))).sort();
 
   return (
     <div className="min-h-screen premium-bg marble-noise pb-20 pt-4">
       <div className="px-5">
         <div className="flex items-center justify-between mb-6">
           <h2 className="font-display text-2xl font-light text-foreground">Stock</h2>
-          <Button onClick={() => setView("add")} className="rounded-xl bg-primary text-primary-foreground font-body font-semibold text-sm px-4 h-9 shadow-md btn-press">
-            <Plus className="w-4 h-4 mr-1" /> Add Stock
-          </Button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setView("analytics")}
+              className="w-9 h-9 rounded-xl bg-card border border-border flex items-center justify-center text-primary btn-press"
+              title="Analytics"
+            >
+              <BarChart3 className="w-4 h-4" />
+            </button>
+            <Button onClick={() => setView("add")} className="rounded-xl bg-primary text-primary-foreground font-body font-semibold text-sm px-4 h-9 shadow-md btn-press">
+              <Plus className="w-4 h-4 mr-1" /> Add Stock
+            </Button>
+          </div>
         </div>
 
+        {/* Totals */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           <div className="p-4 rounded-2xl premium-card">
             <p className="font-body text-xs text-muted-foreground uppercase tracking-wider mb-1">Sq Ft</p>
@@ -273,18 +264,11 @@ export default function StockScreen() {
           </div>
           <div className="p-4 rounded-2xl premium-card flex flex-col">
             <p className="font-body text-xs text-muted-foreground uppercase tracking-wider mb-1">Designs</p>
-            <p className="font-display text-2xl font-semibold text-foreground">{totalDesigns}</p>
+            <p className="font-display text-2xl font-semibold text-foreground">{filteredDesigns.length}</p>
             <div className="flex flex-wrap gap-1 mt-2">
               {(["all", ...allSizes] as Array<TileSize | "all">).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setDesignSizeFilter(s)}
-                  className={`font-body text-[10px] px-1.5 py-0.5 rounded-md border transition-colors ${
-                    designSizeFilter === s
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-transparent text-muted-foreground border-border"
-                  }`}
-                >
+                <button key={s} onClick={() => setDesignSizeFilter(s)}
+                  className={`font-body text-[10px] px-1.5 py-0.5 rounded-md border transition-colors ${designSizeFilter === s ? "bg-primary text-primary-foreground border-primary" : "bg-transparent text-muted-foreground border-border"}`}>
                   {s === "all" ? "All" : s}
                 </button>
               ))}
@@ -292,29 +276,51 @@ export default function StockScreen() {
           </div>
         </div>
 
-        <h3 className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">By Size</h3>
+        {/* By Type */}
+        <h3 className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">By Type</h3>
         <div className="grid grid-cols-3 gap-3 mb-6">
-          {allSizes.map((sz) => {
-            const sizeTiles = tiles.filter((t) => t.size === sz);
-            const sqFt = sizeTiles.filter((t) => t.quantityUnit === "Sq Ft").reduce((sum, t) => sum + t.quantity, 0);
-            const box = sizeTiles.filter((t) => t.quantityUnit === "Box").reduce((sum, t) => sum + t.quantity, 0);
+          {allTypes.map((tp) => {
+            const typeTiles = tiles.filter((t) => t.type === tp);
+            const sqFt = typeTiles.filter((t) => t.quantityUnit === "Sq Ft").reduce((s, t) => s + t.quantity, 0);
+            const box  = typeTiles.filter((t) => t.quantityUnit === "Box").reduce((s, t) => s + t.quantity, 0);
+            const label = tp === "MattyGloss" ? "Carving" : tp;
             return (
-              <div key={sz} className="p-3 rounded-2xl premium-card">
-                <p className="font-body text-xs font-semibold text-primary mb-2">{sz}</p>
+              <div key={tp} className="p-3 rounded-2xl premium-card">
+                <p className="font-body text-xs font-semibold text-primary mb-2 truncate">{label}</p>
+                <p className="font-body text-xs text-muted-foreground mb-1">{typeTiles.length} design{typeTiles.length !== 1 ? "s" : ""}</p>
                 {sqFt > 0 && <p className="font-body text-xs text-foreground">{sqFt.toLocaleString()} <span className="text-muted-foreground">Sq Ft</span></p>}
-                {box > 0 && <p className="font-body text-xs text-foreground">{box.toLocaleString()} <span className="text-muted-foreground">Box</span></p>}
+                {box  > 0 && <p className="font-body text-xs text-foreground">{box.toLocaleString()} <span className="text-muted-foreground">Box</span></p>}
                 {sqFt === 0 && box === 0 && <p className="font-body text-xs text-muted-foreground">—</p>}
               </div>
             );
           })}
         </div>
 
+        {/* By Size */}
+        <h3 className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">By Size</h3>
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {allSizes.map((sz) => {
+            const sizeTiles = tiles.filter((t) => t.size === sz);
+            const sqFt = sizeTiles.filter((t) => t.quantityUnit === "Sq Ft").reduce((s, t) => s + t.quantity, 0);
+            const box  = sizeTiles.filter((t) => t.quantityUnit === "Box").reduce((s, t) => s + t.quantity, 0);
+            return (
+              <div key={sz} className="p-3 rounded-2xl premium-card">
+                <p className="font-body text-xs font-semibold text-primary mb-2">{sz}</p>
+                {sqFt > 0 && <p className="font-body text-xs text-foreground">{sqFt.toLocaleString()} <span className="text-muted-foreground">Sq Ft</span></p>}
+                {box  > 0 && <p className="font-body text-xs text-foreground">{box.toLocaleString()} <span className="text-muted-foreground">Box</span></p>}
+                {sqFt === 0 && box === 0 && <p className="font-body text-xs text-muted-foreground">—</p>}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Godown Wise */}
         <h3 className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Godown Wise</h3>
         <div className="space-y-3">
           {godowns.map((godown) => {
             const godownTiles = tiles.filter((t) => t.location === godown);
-            const sqFt = godownTiles.filter((t) => t.quantityUnit === "Sq Ft").reduce((sum, t) => sum + t.quantity, 0);
-            const box = godownTiles.filter((t) => t.quantityUnit === "Box").reduce((sum, t) => sum + t.quantity, 0);
+            const sqFt = godownTiles.filter((t) => t.quantityUnit === "Sq Ft").reduce((s, t) => s + t.quantity, 0);
+            const box  = godownTiles.filter((t) => t.quantityUnit === "Box").reduce((s, t) => s + t.quantity, 0);
             return (
               <div key={godown} className="p-4 rounded-2xl premium-card">
                 <div className="flex items-center gap-2 mb-3">
@@ -323,26 +329,122 @@ export default function StockScreen() {
                   <span className="ml-auto font-body text-xs text-muted-foreground">{godownTiles.length} tile{godownTiles.length !== 1 ? "s" : ""}</span>
                 </div>
                 <div className="flex gap-4">
-                  {sqFt > 0 && (
-                    <div>
-                      <p className="font-display text-xl font-semibold text-foreground">{sqFt.toLocaleString()}</p>
-                      <p className="font-body text-xs text-muted-foreground">Sq Ft</p>
-                    </div>
-                  )}
-                  {box > 0 && (
-                    <div>
-                      <p className="font-display text-xl font-semibold text-foreground">{box.toLocaleString()}</p>
-                      <p className="font-body text-xs text-muted-foreground">Box</p>
-                    </div>
-                  )}
-                  {sqFt === 0 && box === 0 && (
-                    <p className="font-body text-xs text-muted-foreground">No stock</p>
-                  )}
+                  {sqFt > 0 && <div><p className="font-display text-xl font-semibold text-foreground">{sqFt.toLocaleString()}</p><p className="font-body text-xs text-muted-foreground">Sq Ft</p></div>}
+                  {box  > 0 && <div><p className="font-display text-xl font-semibold text-foreground">{box.toLocaleString()}</p><p className="font-body text-xs text-muted-foreground">Box</p></div>}
+                  {sqFt === 0 && box === 0 && <p className="font-body text-xs text-muted-foreground">No stock</p>}
                 </div>
               </div>
             );
           })}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function AnalyticsView({ tiles, onBack }: { tiles: any[]; onBack: () => void }) {
+  const withStock = tiles.filter((t) => t.quantity > 0).sort((a, b) => b.quantity - a.quantity);
+  const top5    = withStock.slice(0, 5);
+  const bottom5 = [...withStock].sort((a, b) => a.quantity - b.quantity).slice(0, 5);
+  const zeroStock = tiles.filter((t) => t.quantity === 0);
+
+  const typeBreakdown = ["Gloss", "Matt", "MattyGloss"].map((tp) => {
+    const typeTiles = tiles.filter((t) => t.type === tp);
+    const total = typeTiles.reduce((s, t) => s + t.quantity, 0);
+    return { label: tp === "MattyGloss" ? "Carving" : tp, count: typeTiles.length, total, unit: typeTiles[0]?.quantityUnit || "" };
+  }).filter((x) => x.count > 0);
+
+  const maxTotal = Math.max(...typeBreakdown.map((x) => x.total), 1);
+
+  return (
+    <div className="min-h-screen premium-bg marble-noise pb-20 pt-4">
+      <div className="px-5">
+        <div className="flex items-center gap-3 mb-6">
+          <button onClick={onBack} className="w-9 h-9 rounded-full bg-card border border-border flex items-center justify-center">
+            <ArrowLeft className="w-4 h-4 text-foreground" />
+          </button>
+          <h2 className="font-display text-2xl font-light text-foreground">Analytics</h2>
+        </div>
+
+        {/* Type bar chart */}
+        <div className="p-4 rounded-2xl premium-card mb-5">
+          <p className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">Stock by Type</p>
+          <div className="space-y-4">
+            {typeBreakdown.map((tp) => (
+              <div key={tp.label}>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="font-body text-sm font-medium text-foreground">{tp.label}</span>
+                  <span className="font-body text-xs text-muted-foreground">{tp.total.toLocaleString()} · {tp.count} designs</span>
+                </div>
+                <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                  <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(tp.total / maxTotal) * 100}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Highest stock */}
+        <div className="flex items-center gap-2 mb-3">
+          <TrendingUp className="w-4 h-4 text-primary" />
+          <h3 className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider">Highest Stock</h3>
+        </div>
+        <div className="space-y-2 mb-6">
+          {top5.length === 0 && <p className="font-body text-sm text-muted-foreground">No stock data</p>}
+          {top5.map((t, i) => (
+            <div key={t.id} className="flex items-center gap-3 p-3 rounded-2xl premium-card">
+              <span className="font-display text-sm font-semibold text-primary w-5 text-center">{i + 1}</span>
+              <div className="flex-1 min-w-0">
+                <p className="font-body text-sm font-medium text-foreground truncate">{t.name}</p>
+                <p className="font-body text-xs text-muted-foreground">{t.type} · {t.size} · {t.location}</p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="font-display text-lg font-semibold text-foreground">{t.quantity.toLocaleString()}</p>
+                <p className="font-body text-xs text-muted-foreground">{t.quantityUnit}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Low stock */}
+        <div className="flex items-center gap-2 mb-3">
+          <TrendingDown className="w-4 h-4 text-destructive" />
+          <h3 className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider">Lowest Stock</h3>
+        </div>
+        <div className="space-y-2 mb-6">
+          {bottom5.length === 0 && <p className="font-body text-sm text-muted-foreground">No stock data</p>}
+          {bottom5.map((t, i) => (
+            <div key={t.id} className="flex items-center gap-3 p-3 rounded-2xl premium-card border border-destructive/10">
+              <span className="font-display text-sm font-semibold text-destructive w-5 text-center">{i + 1}</span>
+              <div className="flex-1 min-w-0">
+                <p className="font-body text-sm font-medium text-foreground truncate">{t.name}</p>
+                <p className="font-body text-xs text-muted-foreground">{t.type} · {t.size} · {t.location}</p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="font-display text-lg font-semibold text-destructive">{t.quantity.toLocaleString()}</p>
+                <p className="font-body text-xs text-muted-foreground">{t.quantityUnit}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Out of stock */}
+        {zeroStock.length > 0 && (
+          <>
+            <h3 className="font-body text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Out of Stock ({zeroStock.length})</h3>
+            <div className="space-y-2">
+              {zeroStock.map((t) => (
+                <div key={t.id} className="flex items-center gap-3 p-3 rounded-2xl bg-destructive/5 border border-destructive/20">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-body text-sm font-medium text-foreground truncate">{t.name}</p>
+                    <p className="font-body text-xs text-muted-foreground">{t.type} · {t.size} · {t.location}</p>
+                  </div>
+                  <span className="font-body text-xs text-destructive font-semibold">EMPTY</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
