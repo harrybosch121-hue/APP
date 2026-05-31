@@ -1,9 +1,20 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { api } from "@/lib/api";
 
-export type TileType = "Gloss" | "Matt" | "MattyGloss";
+// "MattyGloss" kept for backward-compat with existing DB records; UI always shows "Carving"
+export type TileType = "Gloss" | "Matt" | "MattyGloss" | "Carving";
 export type QuantityUnit = "Sq Ft" | "Box";
 export type TileSize = "2x2" | "2x4" | "12x18";
+
+/** Normalises legacy "MattyGloss" to the display label "Carving" */
+export function displayType(type: string): string {
+  return type === "MattyGloss" ? "Carving" : type;
+}
+
+/** Returns the canonical storage key for a display-label type */
+export function storageType(type: string): TileType {
+  return type === "MattyGloss" ? "Carving" : (type as TileType);
+}
 
 export interface Tile {
   id: string;
