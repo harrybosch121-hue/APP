@@ -55,6 +55,9 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
     ])
   ).sort();
 
+  // Track which names came from billing so we can tag the tile correctly
+  const billingProductNames = new Set(billingProducts.map((p) => p.name));
+
   const filteredSuggestions = name.trim() === ""
     ? []
     : allProductNames.filter((n) => n.toLowerCase().includes(name.toLowerCase())).slice(0, 10);
@@ -74,7 +77,8 @@ function AddStockForm({ onBack }: { onBack: () => void }) {
   const handleSave = async () => {
     if (!name.trim() || !location.trim()) { toast.error("Please fill in all fields"); return; }
     try {
-      await addTile({ name, quantity: Number(quantity) || 0, quantityUnit, type, size, location, image: preview || marbleTile });
+      const source = billingProductNames.has(name.trim()) ? 'billing' : 'manual';
+      await addTile({ name, quantity: Number(quantity) || 0, quantityUnit, type, size, location, image: preview || marbleTile, source });
       toast.success(`${name} added successfully`);
       onBack();
     } catch {
