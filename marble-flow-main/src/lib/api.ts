@@ -46,6 +46,10 @@ const BASE_URL = import.meta.env.VITE_API_URL || "";
       request<any>("/api/tiles", { method: "POST", body: JSON.stringify(tile) }),
     updateStock: (id: string, quantity: number) =>
       request<any>(`/api/tiles/${id}/stock`, { method: "PUT", body: JSON.stringify({ quantity }) }),
+    updateImage: (id: string, image: string) =>
+      request<any>(`/api/tiles/${id}/image`, { method: "PUT", body: JSON.stringify({ image }) }),
+    updatePrice: (id: string, price: number) =>
+      request<any>(`/api/tiles/${id}/price`, { method: "PUT", body: JSON.stringify({ price }) }),
     removeStock: (id: string, quantity: number) =>
       request<any>(`/api/tiles/${id}/remove`, { method: "POST", body: JSON.stringify({ quantity }) }),
 

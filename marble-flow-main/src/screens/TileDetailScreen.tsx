@@ -1,5 +1,5 @@
 import { useState } from "react";
-  import { ArrowLeft, Minus, Plus, MapPin, ClipboardList } from "lucide-react";
+  import { ArrowLeft, Minus, Plus, MapPin, ClipboardList, Camera, IndianRupee } from "lucide-react";
   import { useInventory, displayType } from "@/context/InventoryContext";
   import { Badge } from "@/components/ui/badge";
   import { Button } from "@/components/ui/button";
@@ -22,12 +22,15 @@ import { useState } from "react";
   }
 
   export default function TileDetailScreen({ tileId, onBack }: TileDetailScreenProps) {
-    const { getTile, removeStock, updateStock, logs } = useInventory();
+    const { getTile, removeStock, updateStock, updateImage, updatePrice, logs } = useInventory();
     const tile = getTile(tileId);
     const [removeQty, setRemoveQty] = useState<number | "">(1);
     const [showRemoveDialog, setShowRemoveDialog] = useState(false);
     const [showUpdateDialog, setShowUpdateDialog] = useState(false);
     const [newQty, setNewQty] = useState<number | "">(tile?.quantity || 0);
+    const [showPriceDialog, setShowPriceDialog] = useState(false);
+    const [newPrice, setNewPrice] = useState<number | "">(tile?.price ?? "");
+    const [uploadingImage, setUploadingImage] = useState(false);
 
     if (!tile) return <p className="p-6 text-muted-foreground">Tile not found</p>;
 
@@ -52,6 +55,38 @@ import { useState } from "react";
       toast.success(`Updated stock for ${tile.name}`);
     };
 
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async () => {
+        setUploadingImage(true);
+        try {
+          await updateImage(tile.id, reader.result as string);
+          toast.success("Image updated");
+        } catch {
+          toast.error("Failed to upload image. Check your connection.");
+        } finally {
+          setUploadingImage(false);
+        }
+      };
+      reader.readAsDataURL(file);
+      // Allow re-selecting the same file later
+      e.target.value = "";
+    };
+
+    const handleSavePrice = async () => {
+      const value = Number(newPrice);
+      if (newPrice === "" || isNaN(value) || value < 0) { toast.error("Enter a valid price"); return; }
+      try {
+        await updatePrice(tile.id, value);
+        setShowPriceDialog(false);
+        toast.success(`Rate set for ${tile.name}`);
+      } catch {
+        toast.error("Failed to save rate. Check your connection.");
+      }
+    };
+
     return (
       <div className="min-h-screen premium-bg marble-noise pb-20">
         {/* Hero: tile image as full-bleed background */}
@@ -67,6 +102,12 @@ import { useState } from "react";
             <ArrowLeft className="w-5 h-5" />
             <span className="font-body text-sm">Back</span>
           </button>
+
+          <label className="absolute top-5 right-4 flex items-center gap-2 px-3 py-2 rounded-full bg-black/40 backdrop-blur-sm text-white text-sm btn-press z-10 cursor-pointer">
+            <Camera className="w-4 h-4" />
+            <span className="font-body">{uploadingImage ? "Uploading…" : tile.image ? "Change Image" : "Add Image"}</span>
+            <input type="file" accept="image/*" className="hidden" disabled={uploadingImage} onChange={handleImageSelect} />
+          </label>
 
           <div className="absolute bottom-0 left-0 right-0 px-5 pb-6 animate-fade-in">
             <h2 className="font-display text-3xl font-semibold text-white leading-tight">{tile.name}</h2>
@@ -89,6 +130,26 @@ import { useState } from "react";
             <p className="font-body text-xs text-muted-foreground mt-2">
               Update the available stock for this tile at the selected godown.
             </p>
+          </div>
+
+          {/* Rate card */}
+          <div className="p-4 rounded-2xl premium-card flex items-center justify-between">
+            <div>
+              <p className="font-body text-xs text-muted-foreground uppercase tracking-wider">Rate</p>
+              {tile.price != null ? (
+                <p className="font-display text-3xl font-semibold text-foreground mt-1">
+                  ₹{Number(tile.price).toLocaleString("en-IN")}
+                </p>
+              ) : (
+                <p className="font-body text-sm text-muted-foreground mt-2">No rate set yet</p>
+              )}
+            </div>
+            <Button
+              onClick={() => { setNewPrice(tile.price ?? ""); setShowPriceDialog(true); }}
+              variant="outline"
+              className="h-11 rounded-xl border-primary/30 text-primary hover:bg-primary/5 font-body btn-press">
+              <IndianRupee className="w-4 h-4 mr-1" /> {tile.price != null ? "Update Rate" : "Add Rate"}
+            </Button>
           </div>
 
           {/* Action buttons */}
@@ -200,6 +261,30 @@ import { useState } from "react";
             <DialogFooter className="flex gap-2">
               <Button variant="outline" onClick={() => setShowUpdateDialog(false)} className="flex-1 rounded-xl font-body">Cancel</Button>
               <Button onClick={handleUpdate} className="flex-1 rounded-xl bg-primary text-primary-foreground font-body btn-press">Update</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Rate Dialog */}
+        <Dialog open={showPriceDialog} onOpenChange={setShowPriceDialog}>
+          <DialogContent className="rounded-2xl max-w-sm mx-auto">
+            <DialogHeader>
+              <DialogTitle className="font-display text-xl text-foreground">{tile.price != null ? "Update Rate" : "Add Rate"}</DialogTitle>
+              <DialogDescription className="font-body text-sm">
+                Set the price for <strong>{tile.name}</strong>. This shows up in Search.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex items-center justify-center gap-2 py-4">
+              <span className="font-display text-3xl font-semibold text-muted-foreground">₹</span>
+              <input
+                type="number" min={0} step="any" value={newPrice} autoFocus
+                onChange={(e) => { const v = e.target.value; setNewPrice(v === "" ? "" : Math.max(0, Number(v))); }}
+                placeholder="0"
+                className="w-40 text-center py-2 rounded-xl bg-card border border-border text-foreground font-display text-3xl font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30" />
+            </div>
+            <DialogFooter className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowPriceDialog(false)} className="flex-1 rounded-xl font-body">Cancel</Button>
+              <Button onClick={handleSavePrice} className="flex-1 rounded-xl bg-primary text-primary-foreground font-body btn-press">Save Rate</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

@@ -24,6 +24,7 @@ async function initDb() {
       "quantityUnit" TEXT NOT NULL,
       location TEXT NOT NULL,
       image TEXT,
+      price REAL,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
 

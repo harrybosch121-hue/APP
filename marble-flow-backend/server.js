@@ -58,6 +58,9 @@ initDb()
     // Idempotent migration: add source column to tiles if missing
     pool.query("ALTER TABLE tiles ADD COLUMN IF NOT EXISTS source VARCHAR(20) DEFAULT 'manual'").catch(e => console.error('Migration:', e.message));
 
+    // Idempotent migration: add price column to tiles if missing
+    pool.query("ALTER TABLE tiles ADD COLUMN IF NOT EXISTS price REAL").catch(e => console.error('Migration:', e.message));
+
     // Keep DB connection pool warm every 14 min (prevents Railway cold-start DB reconnect)
     cron.schedule('*/14 * * * *', async () => {
       try { await pool.query('SELECT 1'); } catch (e) { console.error('Keepalive failed:', e.message); }

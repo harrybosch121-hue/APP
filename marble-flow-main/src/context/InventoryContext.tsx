@@ -25,6 +25,8 @@ export interface Tile {
   quantityUnit: QuantityUnit;
   location: string;
   image: string;
+  price?: number | null;
+  source?: string;
 }
 
 export interface AuditEntry {
@@ -42,8 +44,10 @@ interface InventoryContextType {
   tiles: Tile[];
   logs: AuditEntry[];
   loading: boolean;
-  addTile: (tile: Omit<Tile, "id">) => Promise<void>;
+  addTile: (tile: Omit<Tile, "id">) => Promise<Tile>;
   updateStock: (id: string, quantity: number) => Promise<void>;
+  updateImage: (id: string, image: string) => Promise<void>;
+  updatePrice: (id: string, price: number) => Promise<void>;
   removeStock: (id: string, quantity: number) => Promise<void>;
   getTile: (id: string) => Tile | undefined;
   refresh: () => Promise<void>;
@@ -85,6 +89,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     setTiles((prev) => [newTile, ...prev]);
     const updatedLogs = await api.getLogs();
     setLogs(parseLogs(updatedLogs));
+    return newTile as Tile;
   };
 
   const updateStock = async (id: string, quantity: number) => {
@@ -92,6 +97,16 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     setTiles((prev) => prev.map((t) => (t.id === id ? { ...t, quantity } : t)));
     const updatedLogs = await api.getLogs();
     setLogs(parseLogs(updatedLogs));
+  };
+
+  const updateImage = async (id: string, image: string) => {
+    await api.updateImage(id, image);
+    setTiles((prev) => prev.map((t) => (t.id === id ? { ...t, image } : t)));
+  };
+
+  const updatePrice = async (id: string, price: number) => {
+    await api.updatePrice(id, price);
+    setTiles((prev) => prev.map((t) => (t.id === id ? { ...t, price } : t)));
   };
 
   const removeStock = async (id: string, quantity: number) => {
@@ -107,7 +122,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const getTile = (id: string) => tiles.find((t) => t.id === id);
 
   return (
-    <InventoryContext.Provider value={{ tiles, logs, loading, addTile, updateStock, removeStock, getTile, refresh }}>
+    <InventoryContext.Provider value={{ tiles, logs, loading, addTile, updateStock, updateImage, updatePrice, removeStock, getTile, refresh }}>
       {children}
     </InventoryContext.Provider>
   );

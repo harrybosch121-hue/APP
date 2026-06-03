@@ -17,11 +17,23 @@ import { useState, useEffect } from "react";
   };
 
   export default function SearchScreen({ onSelectTile }: SearchScreenProps) {
-    const { tiles } = useInventory();
+    const { tiles, addTile } = useInventory();
     const [query, setQuery] = useState("");
     const [loading, setLoading] = useState(false);
     const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
     const [catalogLoading, setCatalogLoading] = useState(true);
+    const [defaultGodown, setDefaultGodown] = useState("");
+    const [openingId, setOpeningId] = useState<string | null>(null);
+
+    useEffect(() => {
+      api.getConfig()
+        .then((config) => {
+          if (Array.isArray(config.godowns) && config.godowns.length > 0) {
+            setDefaultGodown(config.godowns[0]);
+          }
+        })
+        .catch(() => {});
+    }, []);
 
     useEffect(() => {
       setCatalogLoading(true);
@@ -59,9 +71,31 @@ import { useState, useEffect } from "react";
       setTimeout(() => setLoading(false), 300);
     };
 
-    const handleSelectItem = (item: Tile | CatalogItem) => {
+    const handleSelectItem = async (item: Tile | CatalogItem) => {
       if ("catalogOnly" in item) {
-        toast.info(`"${item.name}" is in the product catalog but not yet added to inventory. Use "Add Stock" to track it.`);
+        // Create a zero-stock placeholder so the catalog product becomes a real,
+        // openable tile — lets staff add its image and rate before any stock exists.
+        if (openingId) return;
+        setOpeningId(item.id);
+        try {
+          const newTile = await addTile({
+            name: item.name,
+            type: "Gloss",
+            size: "2x2",
+            quantity: 0,
+            quantityUnit: "Box",
+            location: defaultGodown || "Main Godown",
+            image: "",
+            source: "billing",
+          });
+          // Remove it from the catalog-only list now that it's in inventory.
+          setCatalogItems((prev) => prev.filter((c) => c.id !== item.id));
+          onSelectTile(newTile.id);
+        } catch {
+          toast.error("Could not open this product. Check your connection.");
+        } finally {
+          setOpeningId(null);
+        }
         return;
       }
       onSelectTile((item as Tile).id);
@@ -125,7 +159,9 @@ import { useState, useEffect } from "react";
                             <Badge variant="secondary" className="text-[10px] font-medium bg-muted text-muted-foreground border-0">
                               Catalog
                             </Badge>
-                            <span className="text-xs text-muted-foreground">Not in inventory</span>
+                            <span className="text-xs text-muted-foreground">
+                              {openingId === item.id ? "Opening…" : "Tap to add image & rate"}
+                            </span>
                           </div>
                         ) : (
                           <>
@@ -138,6 +174,9 @@ import { useState, useEffect } from "react";
                             <div className="flex items-center gap-1 mt-1.5 text-xs text-muted-foreground">
                               <MapPin className="w-3.5 h-3.5" /> {tile!.location}
                             </div>
+                            {tile!.price != null && (
+                              <p className="mt-1.5 text-xs font-semibold text-primary">₹{Number(tile!.price).toLocaleString("en-IN")}</p>
+                            )}
                           </>
                         )}
                       </div>
