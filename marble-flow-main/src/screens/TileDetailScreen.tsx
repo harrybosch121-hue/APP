@@ -1,5 +1,5 @@
 import { useState } from "react";
-  import { ArrowLeft, Minus, Plus, MapPin, ClipboardList, Camera, IndianRupee } from "lucide-react";
+  import { ArrowLeft, Minus, Plus, MapPin, ClipboardList, Camera, IndianRupee, Upload } from "lucide-react";
   import { useInventory, displayType } from "@/context/InventoryContext";
   import { Badge } from "@/components/ui/badge";
   import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ import { useState } from "react";
     const [showPriceDialog, setShowPriceDialog] = useState(false);
     const [newPrice, setNewPrice] = useState<number | "">(tile?.price ?? "");
     const [uploadingImage, setUploadingImage] = useState(false);
+    const [showImageMenu, setShowImageMenu] = useState(false);
 
     if (!tile) return <p className="p-6 text-muted-foreground">Tile not found</p>;
 
@@ -58,6 +59,7 @@ import { useState } from "react";
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
+      setShowImageMenu(false);
       const reader = new FileReader();
       reader.onload = async () => {
         setUploadingImage(true);
@@ -103,11 +105,35 @@ import { useState } from "react";
             <span className="font-body text-sm">Back</span>
           </button>
 
-          <label className="absolute top-5 right-4 flex items-center gap-2 px-3 py-2 rounded-full bg-black/40 backdrop-blur-sm text-white text-sm btn-press z-10 cursor-pointer">
-            <Camera className="w-4 h-4" />
-            <span className="font-body">{uploadingImage ? "Uploading…" : tile.image ? "Change Image" : "Add Image"}</span>
-            <input type="file" accept="image/*" className="hidden" disabled={uploadingImage} onChange={handleImageSelect} />
-          </label>
+          <div className="absolute top-5 right-4 z-10">
+            <button
+              type="button"
+              onClick={() => setShowImageMenu((v) => !v)}
+              disabled={uploadingImage}
+              className="flex items-center gap-2 px-3 py-2 rounded-full bg-black/40 backdrop-blur-sm text-white text-sm btn-press disabled:opacity-60">
+              <Camera className="w-4 h-4" />
+              <span className="font-body">{uploadingImage ? "Uploading…" : tile.image ? "Change Image" : "Add Image"}</span>
+            </button>
+
+            {showImageMenu && !uploadingImage && (
+              <>
+                {/* Tap-away backdrop to dismiss the menu */}
+                <div className="fixed inset-0 z-0" onClick={() => setShowImageMenu(false)} />
+                <div className="absolute right-0 mt-2 w-52 rounded-2xl bg-card border border-border shadow-lg overflow-hidden z-10 animate-fade-in">
+                  <label className="flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-primary/10 transition-colors cursor-pointer">
+                    <Camera className="w-4 h-4 text-muted-foreground" />
+                    <span className="font-body">Click Image Now</span>
+                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageSelect} />
+                  </label>
+                  <label className="flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-primary/10 transition-colors cursor-pointer border-t border-border">
+                    <Upload className="w-4 h-4 text-muted-foreground" />
+                    <span className="font-body">Upload Image</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
+                  </label>
+                </div>
+              </>
+            )}
+          </div>
 
           <div className="absolute bottom-0 left-0 right-0 px-5 pb-6 animate-fade-in">
             <h2 className="font-display text-3xl font-semibold text-white leading-tight">{tile.name}</h2>
