@@ -180,6 +180,16 @@ const express = require('express');
     }
   });
 
+  /* ─── Clear Audit Logs ─── */
+  router.delete('/logs', async (_req, res) => {
+    try {
+      const { rowCount } = await pool.query('DELETE FROM audit_logs');
+      res.json({ ok: true, deleted: rowCount });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   /* ─── Telegram Backup ─── */
   router.post('/backup', async (_req, res) => {
     try {

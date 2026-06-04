@@ -88,6 +88,8 @@ const BASE_URL = import.meta.env.VITE_API_URL || "";
 
       triggerBackup: () => adminRequest<any>("/api/admin/backup", { method: "POST" }),
 
+      clearLogs: () => adminRequest<{ ok: boolean; deleted: number }>("/api/admin/logs", { method: "DELETE" }),
+
       getProducts: () => adminRequest<any[]>("/api/admin/products"),
       addProduct: (p: { name: string; type: string; size: string; quantity: number; quantityUnit: string; location: string }) =>
         adminRequest<any>("/api/admin/products", { method: "POST", body: JSON.stringify(p) }),

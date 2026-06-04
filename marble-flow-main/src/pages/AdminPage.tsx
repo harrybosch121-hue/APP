@@ -294,8 +294,10 @@ import { useState, useEffect, useCallback } from "react";
                   <div key={`cat-${p.id}`} className="rounded-xl border border-amber-100 overflow-hidden">
                     {importingId === `cat-${p.id}` ? (
                       <div className="p-2">
+                        {/* Pre-filled with sensible defaults so it's valid immediately —
+                            the name (and anything else) can be edited, then saved in one step. */}
                         <ProductForm
-                          initial={{ name: p.name }}
+                          initial={{ name: p.name, type: "Gloss", size: "2x2", quantity: 0, quantityUnit: "Box", location: "Unassigned" }}
                           onSave={handleAdd}
                           onCancel={() => setImportingId(null)}
                           saving={saving}
@@ -313,7 +315,7 @@ import { useState, useEffect, useCallback } from "react";
                         <button
                           onClick={() => { setImportingId(`cat-${p.id}`); setAdding(false); setEditingId(null); }}
                           className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700 transition-colors">
-                          <Plus className="w-3.5 h-3.5" />Add to inventory
+                          <Pencil className="w-3.5 h-3.5" />Edit / Add
                         </button>
                       </div>
                     )}
@@ -481,6 +483,7 @@ import { useState, useEffect, useCallback } from "react";
     const [products, setProducts] = useState<Product[]>([]);
     const [loadingAll, setLoadingAll] = useState(false);
     const [backupStatus, setBackupStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
+    const [clearingLogs, setClearingLogs] = useState(false);
 
     useEffect(() => {
       fetch("/api/health").catch(() => {});
@@ -637,6 +640,31 @@ import { useState, useEffect, useCallback } from "react";
                   <Send className={`w-4 h-4 ${backupStatus === "sending" ? "animate-pulse" : ""}`} />
                   {backupStatus === "sending" ? "Sending…" : backupStatus === "done" ? "Backup Sent!" : "Send Backup Now"}
                 </button>
+
+                {/* Danger zone */}
+                <div className="mt-8 pt-5 border-t border-gray-100">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                    <h2 className="font-semibold text-gray-800">Danger Zone</h2>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-3">Permanently delete all audit logs. This cannot be undone — consider sending a backup first.</p>
+                  <button
+                    onClick={async () => {
+                      if (!window.confirm("⚠️ WARNING: This will permanently delete ALL audit logs for every product.\n\nDo you want to continue?")) return;
+                      if (!window.confirm("⚠️ FINAL WARNING: This action CANNOT be undone and the logs cannot be recovered.\n\nAre you absolutely sure you want to delete all audit logs?")) return;
+                      setClearingLogs(true);
+                      try {
+                        const res = await api.admin.clearLogs();
+                        toast.success(`Deleted ${res.deleted} audit log${res.deleted === 1 ? "" : "s"}`);
+                      } catch (e: any) { toast.error(e.message); }
+                      setClearingLogs(false);
+                    }}
+                    disabled={clearingLogs}
+                    className="w-full py-3 rounded-xl bg-white border border-red-300 text-red-600 text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 hover:bg-red-50 transition-colors">
+                    <Trash2 className={`w-4 h-4 ${clearingLogs ? "animate-pulse" : ""}`} />
+                    {clearingLogs ? "Clearing…" : "Clear All Audit Logs"}
+                  </button>
+                </div>
               </div>
             )}
           </div>
