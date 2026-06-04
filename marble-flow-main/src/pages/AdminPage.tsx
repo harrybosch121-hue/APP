@@ -86,6 +86,7 @@ import { useState, useEffect, useCallback } from "react";
     const [refreshing, setRefreshing] = useState(false);
     const [adding, setAdding] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [importingId, setImportingId] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [search, setSearch] = useState("");
@@ -157,6 +158,7 @@ import { useState, useEffect, useCallback } from "react";
         const newP = await api.admin.addProduct(form);
         setProducts(prev => [...prev, newP].sort((a, b) => a.name.localeCompare(b.name)));
         setAdding(false);
+        setImportingId(null);
         toast.success(`"${newP.name}" added`);
       } catch (e: any) { toast.error(e.message); }
       setSaving(false);
@@ -290,15 +292,31 @@ import { useState, useEffect, useCallback } from "react";
                 )}
                 {filteredCatalog.map(p => (
                   <div key={`cat-${p.id}`} className="rounded-xl border border-amber-100 overflow-hidden">
-                    <div className="flex items-center px-4 py-3 bg-amber-50/60 gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-700 truncate">{p.name}</p>
-                        <div className="flex gap-1.5 mt-1">
-                          <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">Catalog only</span>
-                          <span className="text-[10px] text-gray-400">Not yet in inventory</span>
-                        </div>
+                    {importingId === `cat-${p.id}` ? (
+                      <div className="p-2">
+                        <ProductForm
+                          initial={{ name: p.name }}
+                          onSave={handleAdd}
+                          onCancel={() => setImportingId(null)}
+                          saving={saving}
+                        />
                       </div>
-                    </div>
+                    ) : (
+                      <div className="flex items-center px-4 py-3 bg-amber-50/60 gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-700 truncate">{p.name}</p>
+                          <div className="flex gap-1.5 mt-1">
+                            <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">Catalog only</span>
+                            <span className="text-[10px] text-gray-400">Not yet in inventory</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => { setImportingId(`cat-${p.id}`); setAdding(false); setEditingId(null); }}
+                          className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700 transition-colors">
+                          <Plus className="w-3.5 h-3.5" />Add to inventory
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </>
