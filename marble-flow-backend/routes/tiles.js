@@ -103,7 +103,18 @@ router.put('/:id/price', requireAuth, async (req, res) => {
     const tile = rows[0];
     if (!tile) return res.status(404).json({ error: 'Tile not found' });
 
+    const hadPrice = tile.price !== null && tile.price !== undefined;
     await pool.query('UPDATE tiles SET price = $1 WHERE id = $2', [value, req.params.id]);
+
+    // Log the rate change (only when it actually changes). The rupee amount is
+    // stored in `quantity` with `₹` as the unit so it fits the existing schema.
+    if (!hadPrice || Number(tile.price) !== value) {
+      const logId = randomUUID();
+      await pool.query(
+        'INSERT INTO audit_logs (id, "staffName", action, "tileName", quantity, "quantityUnit", location, timestamp) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+        [logId, req.user.username, hadPrice ? 'Price Updated' : 'Price Set', tile.name, value, '₹', tile.location, new Date().toISOString()]
+      );
+    }
 
     res.json({ ...tile, price: value });
   } catch (err) {

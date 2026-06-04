@@ -32,7 +32,7 @@ export interface Tile {
 export interface AuditEntry {
   id: string;
   staffName: string;
-  action: "Added" | "Removed";
+  action: "Added" | "Removed" | "Price Set" | "Price Updated";
   tileName: string;
   quantity: number;
   quantityUnit: QuantityUnit;
@@ -141,6 +141,8 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const updatePrice = async (id: string, price: number) => {
     await api.updatePrice(id, price);
     setTiles((prev) => prev.map((t) => (t.id === id ? { ...t, price } : t)));
+    const updatedLogs = await api.getLogs();
+    setLogs(parseLogs(updatedLogs));
   };
 
   const removeStock = async (id: string, quantity: number) => {

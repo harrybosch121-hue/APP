@@ -206,25 +206,34 @@ import { useState } from "react";
               </div>
             ) : (
               <div className="space-y-2">
-                {tileLogs.map((log) => (
+                {tileLogs.map((log) => {
+                  const isPrice = log.action === "Price Set" || log.action === "Price Updated";
+                  return (
                   <div key={log.id} className="flex items-start gap-3 p-3.5 rounded-2xl premium-card animate-fade-in">
                     {/* Action dot */}
-                    <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${log.action === "Added" ? "bg-green-500" : "bg-destructive"}`} />
+                    <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${isPrice ? "bg-primary" : log.action === "Added" ? "bg-green-500" : "bg-destructive"}`} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className={`font-body text-xs font-semibold ${log.action === "Added" ? "text-green-600" : "text-destructive"}`}>
-                          {log.action}
+                        <span className={`font-body text-xs font-semibold ${isPrice ? "text-primary" : log.action === "Added" ? "text-green-600" : "text-destructive"}`}>
+                          {isPrice ? (log.action === "Price Set" ? "Rate added" : "Rate updated") : log.action}
                         </span>
                         <span className="font-body text-xs text-muted-foreground">by {log.staffName}</span>
                       </div>
                       <p className="font-body text-xs text-muted-foreground mt-0.5">{formatDate(new Date(log.timestamp))}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="font-body text-sm font-semibold text-foreground">{log.quantity}</p>
-                      <p className="font-body text-[10px] text-muted-foreground">{log.quantityUnit}</p>
+                      {isPrice ? (
+                        <p className="font-body text-sm font-semibold text-primary">₹{Number(log.quantity).toLocaleString("en-IN")}</p>
+                      ) : (
+                        <>
+                          <p className="font-body text-sm font-semibold text-foreground">{log.quantity}</p>
+                          <p className="font-body text-[10px] text-muted-foreground">{log.quantityUnit}</p>
+                        </>
+                      )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
