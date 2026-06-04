@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { App as CapacitorApp } from "@capacitor/app";
 import { InventoryProvider } from "@/context/InventoryContext";
 import BottomNav from "@/components/BottomNav";
 import HomeScreen from "@/screens/HomeScreen";
@@ -13,6 +14,28 @@ const Index = () => {
   const [loggedIn, setLoggedIn] = useState(() => !!localStorage.getItem("auth_token"));
   const [screen, setScreen] = useState("home");
   const [selectedTile, setSelectedTile] = useState<string | null>(null);
+
+  // Android hardware back button. In-app navigation is state-based (it pushes
+  // no browser history), so Capacitor's default back behaviour exits the app —
+  // e.g. pressing back on a tile's detail page. This routes back through our
+  // own screen state instead, and only exits when already on Home.
+  const handleBackRef = useRef<() => boolean>(() => false);
+  handleBackRef.current = () => {
+    if (!loggedIn) return false;
+    if (screen === "detail") { setScreen("search"); setSelectedTile(null); return true; }
+    if (screen !== "home") { setScreen("home"); return true; }
+    return false; // already Home → let the app exit
+  };
+
+  useEffect(() => {
+    let remove: (() => void) | undefined;
+    CapacitorApp.addListener("backButton", () => {
+      if (!handleBackRef.current()) CapacitorApp.exitApp();
+    })
+      .then((listener) => { remove = () => listener.remove(); })
+      .catch(() => {}); // no-op outside a native (Capacitor) shell
+    return () => { remove?.(); };
+  }, []);
 
   if (!loggedIn) {
     return <LoginScreen onLogin={() => setLoggedIn(true)} />;
