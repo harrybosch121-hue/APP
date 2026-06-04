@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { api } from "@/lib/api";
 
 // "MattyGloss" kept for backward-compat with existing DB records; UI always shows "Carving"
@@ -83,6 +83,40 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => { refresh(); }, []);
+
+  // Keep inventory in sync with server-side changes (e.g. edits made from the
+  // Admin panel on another device). After the first load, refresh() runs
+  // silently — it only flips `loading` before the app is initialised — so
+  // these background syncs never flash skeletons.
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+
+  useEffect(() => {
+    const POLL_MS = 15000;
+
+    const syncNow = () => {
+      // Don't poll a backgrounded tab; we refetch on the visibility/focus
+      // events below the moment the user returns.
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      refreshRef.current();
+    };
+
+    const onReturn = () => {
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        refreshRef.current();
+      }
+    };
+
+    const timer = setInterval(syncNow, POLL_MS);
+    window.addEventListener("focus", onReturn);
+    document.addEventListener("visibilitychange", onReturn);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", onReturn);
+      document.removeEventListener("visibilitychange", onReturn);
+    };
+  }, []);
 
   const addTile = async (tile: Omit<Tile, "id">) => {
     const newTile = await api.addTile(tile as Record<string, unknown>);

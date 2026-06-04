@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
   import { Search, MapPin, Package } from "lucide-react";
   import { useInventory, displayType, Tile } from "@/context/InventoryContext";
   import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,7 @@ import { useState, useEffect } from "react";
     const { tiles, addTile } = useInventory();
     const [query, setQuery] = useState("");
     const [loading, setLoading] = useState(false);
-    const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
+    const [billingProducts, setBillingProducts] = useState<{ id: string; name: string }[]>([]);
     const [catalogLoading, setCatalogLoading] = useState(true);
     const [defaultGodown, setDefaultGodown] = useState("");
     const [openingId, setOpeningId] = useState<string | null>(null);
@@ -35,19 +35,24 @@ import { useState, useEffect } from "react";
         .catch(() => {});
     }, []);
 
+    // Fetch the billing catalog once. The catalog-only list is derived from this
+    // plus the live `tiles` below, so background inventory refreshes (e.g. an
+    // admin rename) update Search without re-hitting billing or flashing skeletons.
     useEffect(() => {
-      setCatalogLoading(true);
+      let active = true;
       api.getBillingProducts()
-        .then((products) => {
-          const tileNameSet = new Set(tiles.map((t) => t.name.toLowerCase().trim()));
-          const catalogOnly = products
-            .filter((p) => !tileNameSet.has(p.name.toLowerCase().trim()))
-            .map((p) => ({ id: `billing-${p.id}`, name: p.name, catalogOnly: true as const }));
-          setCatalogItems(catalogOnly);
-        })
+        .then((products) => { if (active) setBillingProducts(products || []); })
         .catch(() => {})
-        .finally(() => setCatalogLoading(false));
-    }, [tiles]);
+        .finally(() => { if (active) setCatalogLoading(false); });
+      return () => { active = false; };
+    }, []);
+
+    const catalogItems: CatalogItem[] = useMemo(() => {
+      const tileNameSet = new Set(tiles.map((t) => t.name.toLowerCase().trim()));
+      return billingProducts
+        .filter((p) => !tileNameSet.has(p.name.toLowerCase().trim()))
+        .map((p) => ({ id: `billing-${p.id}`, name: p.name, catalogOnly: true as const }));
+    }, [billingProducts, tiles]);
 
     const allItems: (Tile | CatalogItem)[] = [...tiles, ...catalogItems];
 
@@ -88,8 +93,7 @@ import { useState, useEffect } from "react";
             image: "",
             source: "billing",
           });
-          // Remove it from the catalog-only list now that it's in inventory.
-          setCatalogItems((prev) => prev.filter((c) => c.id !== item.id));
+          // Once it's a real tile, the derived catalog list drops it automatically.
           onSelectTile(newTile.id);
         } catch {
           toast.error("Could not open this product. Check your connection.");
